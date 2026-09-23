@@ -14,7 +14,8 @@ export interface RoadPiece {
   rotation: 0 | 1 | 2 | 3;
 }
 
-const BASE_MASK: Record<RoadShape, number> = {
+/** Connection mask of each shape in its base orientation (rotation 0). */
+export const ROAD_BASE_MASK: Record<RoadShape, number> = {
   isolated: 0,
   deadEnd: 0b0001,
   straight: 0b0101,
@@ -67,7 +68,7 @@ export function shapeForMask(mask: number): RoadShape {
 export function pieceForMask(mask: number): RoadPiece {
   const shape = shapeForMask(mask);
   for (const rotation of [0, 1, 2, 3] as const) {
-    if (rotateMask(BASE_MASK[shape], rotation) === mask) return { shape, rotation };
+    if (rotateMask(ROAD_BASE_MASK[shape], rotation) === mask) return { shape, rotation };
   }
   return { shape, rotation: 0 };
 }

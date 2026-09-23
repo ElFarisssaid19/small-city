@@ -16,3 +16,13 @@ body {
   height: 100%;
   overflow: hidden;
 }
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+#app canvas {
+  display: block;
+  touch-action: none;
+}
