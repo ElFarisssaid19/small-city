@@ -116,6 +116,12 @@ export const CONFIG = {
       industrial: 10,
     },
   },
+
+  save: {
+    /** Bump when the save format changes and add a migration in save.ts. */
+    version: 1,
+    autosaveDays: 30,
+  },
 } as const;
 
 export type Config = typeof CONFIG;

@@ -32,5 +32,9 @@ export interface GameEvents {
   'tile:hovered': Point | null;
   'tile:selected': Point | null;
 
+  'game:new': void;
+  'game:save': void;
+  'game:load': void;
+
   notice: { message: string; tone: NoticeTone };
 }

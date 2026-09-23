@@ -88,7 +88,31 @@ export function createStatsBar(bus: EventBus<GameEvents>): HTMLElement {
     speeds.append(btn);
   }
 
-  bar.append(title, stats, tax, demand.root, speeds);
+  const menu = el('div', 'menu');
+  menu.append(
+    button('menu-button', 'Save', () => bus.emit('game:save'), 'Save the city'),
+    button(
+      'menu-button',
+      'Load',
+      () => {
+        if (window.confirm('Load your saved city? Progress since then will be lost.')) {
+          bus.emit('game:load');
+        }
+      },
+      'Load the saved city',
+    ),
+    button(
+      'menu-button',
+      'New',
+      () => {
+        if (window.confirm('Start a new city? Unsaved progress will be lost.'))
+          bus.emit('game:new');
+      },
+      'Start a new city',
+    ),
+  );
+
+  bar.append(title, stats, tax, demand.root, speeds, menu);
 
   bus.on('speed:changed', (active) => {
     for (const [speed, btn] of speedButtons) btn.classList.toggle('active', speed === active);

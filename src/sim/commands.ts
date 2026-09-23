@@ -129,7 +129,7 @@ function planBulldoze(state: SimState, from: Point, to: Point): Plan {
     if (tile.kind === 'powerPlant') {
       // Removing any part of a plant removes all of it.
       for (const q of plantFootprint(toPoint(state, tile.anchor))) {
-        indices.add(toIndex(state, q.x, q.y));
+        if (inBounds(state, q.x, q.y)) indices.add(toIndex(state, q.x, q.y));
       }
     } else {
       indices.add(i);
