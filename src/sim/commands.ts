@@ -143,7 +143,8 @@ function planBulldoze(state: SimState, from: Point, to: Point): Plan {
 export function planCommand(state: SimState, command: Command): Plan {
   const plan = planTiles(state, command);
   plan.cost = commandCost(command, plan.count);
-  if (plan.valid && plan.cost > state.funds) {
+  // Free commands (like changing taxes) stay possible while in debt.
+  if (plan.valid && plan.cost > 0 && plan.cost > state.funds) {
     plan.valid = false;
     plan.reason = 'Not enough money.';
   }
