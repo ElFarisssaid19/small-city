@@ -17,7 +17,7 @@ export interface TileInfo extends Point {
   plantCapacity: number;
 }
 
-export function inspectTile(state: SimState, p: Point): TileInfo | null {
+export function inspectTile(state: Readonly<SimState>, p: Point): TileInfo | null {
   if (!inBounds(state, p.x, p.y)) return null;
   const tile = state.tiles[toIndex(state, p.x, p.y)];
   return {
