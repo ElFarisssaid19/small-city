@@ -69,6 +69,22 @@ export class CameraRig {
     this.apply();
   }
 
+  /** Pans by a screen offset in pixels, as if dragging the map from the view centre. */
+  nudge(dx: number, dy: number): void {
+    const centre = this.centre();
+    this.pan(centre, new Vector2(centre.x + dx, centre.y + dy));
+  }
+
+  /** Zooms about the view centre. */
+  zoomCentre(factor: number): void {
+    this.zoomBy(factor, this.centre());
+  }
+
+  private centre(): Vector2 {
+    const rect = this.element.getBoundingClientRect();
+    return new Vector2(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }
+
   /** Multiplies the zoom by `factor`, keeping the ground under `focus` in place. */
   zoomBy(factor: number, focus: Vector2): void {
     const before = this.groundAt(focus.x, focus.y);
