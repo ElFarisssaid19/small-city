@@ -5,6 +5,7 @@ import type { Command, Plan } from '../sim/commands';
 import { CONFIG } from '../sim/config';
 import type { Simulation } from '../sim/simulation';
 import type { SimState } from '../sim/types';
+import { formatMoney } from '../core/format';
 import type { GameEvents } from './events';
 
 /**
@@ -67,6 +68,14 @@ export class Game {
       this.bus.emit('notice', {
         message: `${what} abandoned: zones need power and a road within reach.`,
         tone: 'warn',
+      });
+    }
+    if (report.budget) {
+      const { taxes, upkeep } = report.budget;
+      const net = taxes - upkeep;
+      this.bus.emit('notice', {
+        message: `Month end: taxes ${formatMoney(taxes)}, upkeep ${formatMoney(-upkeep)} (net ${formatMoney(net)}).`,
+        tone: net >= 0 ? 'info' : 'warn',
       });
     }
     this.bus.emit('sim:updated', this.sim.state);

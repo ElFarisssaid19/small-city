@@ -31,10 +31,17 @@ export function targetDemand(stats: CityStats): Demand {
   };
 }
 
+/** Taxes above the neutral rate push every zone's demand down, lower taxes pull it up. */
+export function taxEffect(taxRate: number): number {
+  return (CONFIG.demand.neutralTaxRate - taxRate) * CONFIG.demand.taxSensitivity;
+}
+
 /** Moves demand a step toward its target so it changes smoothly day to day. */
 export function updateDemand(state: SimState): void {
   const target = targetDemand(state.stats);
+  const tax = taxEffect(state.taxRate);
   for (const zone of ZONE_TYPES) {
-    state.demand[zone] += (target[zone] - state.demand[zone]) * CONFIG.demand.smoothing;
+    const goal = clamp(target[zone] + tax, -1, 1);
+    state.demand[zone] += (goal - state.demand[zone]) * CONFIG.demand.smoothing;
   }
 }

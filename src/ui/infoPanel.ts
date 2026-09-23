@@ -4,7 +4,8 @@ import { CONFIG } from '../sim/config';
 import { inspectTile } from '../sim/inspect';
 import type { TileInfo } from '../sim/inspect';
 import type { Point, SimState } from '../sim/types';
-import { button, el, formatNumber } from './dom';
+import { formatNumber } from '../core/format';
+import { button, el } from './dom';
 
 const ZONE_NAMES = {
   residential: 'Residential',

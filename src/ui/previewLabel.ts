@@ -2,6 +2,7 @@ import type { EventBus } from '../core/events';
 import type { GameEvents, PreviewInfo } from '../game/events';
 import { TOOLS } from '../game/tools';
 import type { ToolId } from '../game/tools';
+import { formatMoney } from '../core/format';
 import { el } from './dom';
 
 const OFFSET_PX = 18;
@@ -19,9 +20,8 @@ export function createPreviewLabel(bus: EventBus<GameEvents>): HTMLElement {
     }
     const { plan } = preview;
     const name = TOOLS.find((t) => t.id === tool)?.label ?? '';
-    label.textContent = plan.valid
-      ? `${name} × ${plan.count}`
-      : (plan.reason ?? 'Not possible here.');
+    const summary = `${name} × ${plan.count} · ${formatMoney(plan.cost)}`;
+    label.textContent = plan.valid ? summary : `${summary} — ${plan.reason ?? 'Not possible.'}`;
     label.classList.toggle('invalid', !plan.valid);
     label.hidden = false;
     // Keep the label on screen near the right and bottom edges.

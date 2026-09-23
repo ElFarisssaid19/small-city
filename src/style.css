@@ -68,6 +68,19 @@ button {
   pointer-events: auto;
 }
 
+#hud > .hud-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  pointer-events: none;
+}
+
+.hud-top > .panel {
+  pointer-events: auto;
+}
+
 .panel {
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
@@ -408,15 +421,10 @@ button {
 }
 
 .notices {
-  position: fixed;
-  top: 84px;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  pointer-events: none !important;
   width: min(92vw, 460px);
 }
 
@@ -483,8 +491,51 @@ button {
     transform: none;
     width: min(260px, calc(100vw - 16px));
   }
+}
 
-  .notices {
-    top: 110px;
-  }
+/* ---------- Economy ---------- */
+
+.tax {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tax .stat-label {
+  margin-right: 2px;
+}
+
+.tax-step {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  line-height: 1;
+}
+
+.tax-step:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.tax-value {
+  min-width: 30px;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.debt-warning {
+  max-width: min(92vw, 560px);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(120, 24, 24, 0.94);
+  border: 1px solid var(--bad);
+  font-weight: 600;
+  text-align: center;
+}
+
+.debt-warning[hidden] {
+  display: none;
 }

@@ -19,14 +19,13 @@ export function button(
 ): HTMLButtonElement {
   const node = el('button', className, label);
   node.type = 'button';
-  if (title) node.title = title;
+  if (title) {
+    node.title = title;
+    node.setAttribute('aria-label', title);
+  }
   node.addEventListener('click', () => {
     onClick();
     node.blur();
   });
   return node;
-}
-
-export function formatNumber(value: number): string {
-  return Math.round(value).toLocaleString('en-US');
 }

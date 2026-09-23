@@ -4,7 +4,8 @@ import { CONFIG } from '../sim/config';
 import { dateOf } from '../sim/time';
 import { ZONE_TYPES } from '../sim/types';
 import type { SimState, ZoneType } from '../sim/types';
-import { button, el, formatNumber } from './dom';
+import { formatMoney, formatNumber } from '../core/format';
+import { button, el } from './dom';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -51,11 +52,24 @@ export function createStatsBar(bus: EventBus<GameEvents>): HTMLElement {
   const date = el('span', 'date', '');
   title.append(el('h1', 'title', 'Small City'), date);
 
+  const funds = stat('Funds');
   const population = stat('Population');
   const jobs = stat('Jobs');
   const power = stat('Power');
   const stats = el('div', 'stats');
-  stats.append(population.root, jobs.root, power.root);
+  stats.append(funds.root, population.root, jobs.root, power.root);
+
+  // Tax rate: − value + ; sent to the simulation as a command like any other change.
+  let taxRate: number = CONFIG.economy.taxRate.initial;
+  const tax = el('div', 'tax');
+  const taxValue = el('span', 'tax-value', '');
+  const setTax = (rate: number) => bus.emit('command', { type: 'setTaxRate', rate });
+  tax.append(
+    el('span', 'stat-label', 'Tax'),
+    button('tax-step', '−', () => setTax(taxRate - 1), 'Lower taxes'),
+    taxValue,
+    button('tax-step', '+', () => setTax(taxRate + 1), 'Raise taxes'),
+  );
 
   const demand = createDemandMeter();
 
@@ -74,7 +88,7 @@ export function createStatsBar(bus: EventBus<GameEvents>): HTMLElement {
     speeds.append(btn);
   }
 
-  bar.append(title, stats, demand.root, speeds);
+  bar.append(title, stats, tax, demand.root, speeds);
 
   bus.on('speed:changed', (active) => {
     for (const [speed, btn] of speedButtons) btn.classList.toggle('active', speed === active);
@@ -84,6 +98,12 @@ export function createStatsBar(bus: EventBus<GameEvents>): HTMLElement {
     const d = dateOf(state.day);
     date.textContent = `Year ${d.year} · ${MONTHS[d.month - 1]} ${d.day}`;
     const s = state.stats;
+    funds.value.textContent = formatMoney(state.funds);
+    funds.root.classList.toggle('bad', state.funds < 0);
+    const { taxes, upkeep } = state.lastBudget;
+    funds.root.title = `Last month: taxes ${formatMoney(taxes)}, upkeep ${formatMoney(-upkeep)}`;
+    taxRate = state.taxRate;
+    taxValue.textContent = `${taxRate}%`;
     population.value.textContent = formatNumber(s.population);
     jobs.value.textContent = `${formatNumber(s.employed)} / ${formatNumber(s.jobs)}`;
     jobs.root.title = `${formatNumber(s.employed)} employed of ${formatNumber(s.workforce)} workers; ${formatNumber(s.jobs)} jobs`;

@@ -79,6 +79,42 @@ export const CONFIG = {
     industrialJobsPerResident: 0.42,
     /** Fraction of the gap between current and target demand closed each day. */
     smoothing: 0.2,
+    /** Tax rate (percent) that neither helps nor hurts demand. */
+    neutralTaxRate: 9,
+    /** Demand change per percentage point of tax above or below neutral. */
+    taxSensitivity: 0.05,
+  },
+
+  economy: {
+    startingFunds: 20000,
+    /** One-off build cost per tile, except power plants which cost this per plant. */
+    costs: {
+      road: 10,
+      powerLine: 5,
+      residential: 20,
+      commercial: 20,
+      industrial: 20,
+      powerPlant: 3000,
+      bulldoze: 5,
+    },
+    /** Monthly upkeep per tile, except power plants which cost this per plant. */
+    upkeep: {
+      road: 2,
+      powerLine: 1,
+      powerPlant: 150,
+    },
+    /** Tax rate in percent. */
+    taxRate: {
+      initial: 9,
+      min: 0,
+      max: 20,
+    },
+    /** Monthly taxable income per resident or worker; the city collects `taxRate` percent of it. */
+    income: {
+      residential: 10,
+      commercial: 12,
+      industrial: 10,
+    },
   },
 } as const;
 

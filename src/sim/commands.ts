@@ -1,4 +1,5 @@
 import { CONFIG } from './config';
+import { clampTaxRate, commandCost } from './economy';
 import { inBounds, linePoints, rectPoints, toIndex, toPoint } from './grid';
 import { emptyTile } from './state';
 import type { Point, SimState, Tile, ZoneType } from './types';
@@ -9,7 +10,8 @@ export type Command =
   | { type: 'placePowerLine'; from: Point; to: Point }
   | { type: 'placeZone'; zone: ZoneType; from: Point; to: Point }
   | { type: 'placePowerPlant'; at: Point }
-  | { type: 'bulldoze'; from: Point; to: Point };
+  | { type: 'bulldoze'; from: Point; to: Point }
+  | { type: 'setTaxRate'; rate: number };
 
 export interface PlanTile extends Point {
   /** False when something is in the way. */
@@ -22,6 +24,8 @@ export interface Plan {
   tiles: PlanTile[];
   /** Number of tiles that would change. */
   count: number;
+  /** Money the command would spend. */
+  cost: number;
   valid: boolean;
   /** Why the command cannot run, when it is not valid. */
   reason: string | null;
@@ -55,7 +59,8 @@ function zoneVerdict(tile: Tile, zone: ZoneType): Verdict {
 }
 
 function makePlan(tiles: PlanTile[], reason: string | null): Plan {
-  return { tiles, count: tiles.filter((t) => t.ok).length, valid: reason === null, reason };
+  const count = tiles.filter((t) => t.ok).length;
+  return { tiles, count, cost: 0, valid: reason === null, reason };
 }
 
 function tileAt(state: SimState, p: Point): Tile {
@@ -134,8 +139,18 @@ function planBulldoze(state: SimState, from: Point, to: Point): Plan {
   return makePlan(tiles, tiles.length === 0 ? 'Nothing to bulldoze.' : null);
 }
 
-/** Works out what a command would do without changing the state. */
+/** Works out what a command would do and cost, without changing the state. */
 export function planCommand(state: SimState, command: Command): Plan {
+  const plan = planTiles(state, command);
+  plan.cost = commandCost(command, plan.count);
+  if (plan.valid && plan.cost > state.funds) {
+    plan.valid = false;
+    plan.reason = 'Not enough money.';
+  }
+  return plan;
+}
+
+function planTiles(state: SimState, command: Command): Plan {
   switch (command.type) {
     case 'placeRoad':
       return planPath(state, linePoints(command.from, command.to), roadVerdict);
@@ -147,6 +162,8 @@ export function planCommand(state: SimState, command: Command): Plan {
       return planPowerPlant(state, command.at);
     case 'bulldoze':
       return planBulldoze(state, command.from, command.to);
+    case 'setTaxRate':
+      return makePlan([], null);
   }
 }
 
@@ -174,13 +191,20 @@ function applyToTile(state: SimState, command: Command, p: Point): void {
     case 'bulldoze':
       state.tiles[i] = emptyTile();
       break;
+    case 'setTaxRate':
+      break;
   }
 }
 
-/** Applies a command if its plan is valid. Derived state (power, access…) is left to the caller. */
+/**
+ * Applies a command and pays for it if its plan is valid and affordable.
+ * Derived state (power, access…) is left to the caller.
+ */
 export function executeCommand(state: SimState, command: Command): CommandResult {
   const plan = planCommand(state, command);
   if (!plan.valid) return { ok: false, reason: plan.reason, plan };
+  if (command.type === 'setTaxRate') state.taxRate = clampTaxRate(command.rate);
   for (const t of plan.tiles) if (t.ok) applyToTile(state, command, t);
+  state.funds -= plan.cost;
   return { ok: true, reason: null, plan };
 }

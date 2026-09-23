@@ -2,18 +2,19 @@ import { updateRoadAccess } from './access';
 import { executeCommand, planCommand } from './commands';
 import type { Command, CommandResult, Plan } from './commands';
 import { updateDemand } from './demand';
+import { settleMonth } from './economy';
 import { matchJobs } from './jobs';
 import { updatePower } from './power';
 import { createState } from './state';
 import { isMonthStart } from './time';
-import type { SimState } from './types';
+import type { MonthlyBudget, SimState } from './types';
 import { updateZones } from './zones';
 import type { ZoneReport } from './zones';
 
 export interface TickReport extends ZoneReport {
   day: number;
-  /** True on the first day of a new month. */
-  newMonth: boolean;
+  /** Set on the first day of a new month, when taxes and upkeep are settled. */
+  budget: MonthlyBudget | null;
 }
 
 /**
@@ -50,8 +51,9 @@ export class Simulation {
     const zones = updateZones(state);
     this.refresh();
     updateDemand(state);
+    const budget = isMonthStart(state.day) ? settleMonth(state) : null;
     state.revision++;
-    return { ...zones, day: state.day, newMonth: isMonthStart(state.day) };
+    return { ...zones, day: state.day, budget };
   }
 
   /** Recomputes everything derived from the map: road access, power, jobs and totals. */

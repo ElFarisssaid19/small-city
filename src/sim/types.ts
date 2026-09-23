@@ -58,6 +58,12 @@ export interface CityStats {
   unpoweredZones: number;
 }
 
+/** Money collected and spent at the end of a month. */
+export interface MonthlyBudget {
+  taxes: number;
+  upkeep: number;
+}
+
 export interface SimState {
   width: number;
   height: number;
@@ -66,6 +72,12 @@ export interface SimState {
   rng: number;
   /** Days elapsed since the city was founded. */
   day: number;
+  /** Cash on hand; may go negative through upkeep, but nothing can be built then. */
+  funds: number;
+  /** Tax rate in percent. */
+  taxRate: number;
+  /** Result of the most recent month end. */
+  lastBudget: MonthlyBudget;
   tiles: Tile[];
   demand: Demand;
   stats: CityStats;
