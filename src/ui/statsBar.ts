@@ -6,6 +6,7 @@ import { ZONE_TYPES } from '../sim/types';
 import type { SimState, ZoneType } from '../sim/types';
 import { formatMoney, formatNumber } from '../core/format';
 import { button, el } from './dom';
+import type { Modal } from './modal';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -45,7 +46,7 @@ function createDemandMeter(): { root: HTMLElement; update: (state: Readonly<SimS
 }
 
 /** Top bar: title, date, city statistics, RCI demand and speed controls. */
-export function createStatsBar(bus: EventBus<GameEvents>): HTMLElement {
+export function createStatsBar(bus: EventBus<GameEvents>, modal: Modal): HTMLElement {
   const bar = el('header', 'panel statsbar');
 
   const title = el('div', 'brand');
@@ -88,28 +89,31 @@ export function createStatsBar(bus: EventBus<GameEvents>): HTMLElement {
     speeds.append(btn);
   }
 
+  const loadCity = async () => {
+    const confirmed = await modal.ask({
+      title: 'Load saved city?',
+      message:
+        'Your current city will be replaced by the last manual save. Progress since then will be lost.',
+      confirmLabel: 'Load',
+      tone: 'danger',
+    });
+    if (confirmed) bus.emit('game:load');
+  };
+  const newCity = async () => {
+    const confirmed = await modal.ask({
+      title: 'Start a new city?',
+      message: 'The current city will be cleared. Save first if you want to come back to it.',
+      confirmLabel: 'Start new city',
+      tone: 'danger',
+    });
+    if (confirmed) bus.emit('game:new');
+  };
+
   const menu = el('div', 'menu');
   menu.append(
     button('menu-button', 'Save', () => bus.emit('game:save'), 'Save the city'),
-    button(
-      'menu-button',
-      'Load',
-      () => {
-        if (window.confirm('Load your saved city? Progress since then will be lost.')) {
-          bus.emit('game:load');
-        }
-      },
-      'Load the saved city',
-    ),
-    button(
-      'menu-button',
-      'New',
-      () => {
-        if (window.confirm('Start a new city? Unsaved progress will be lost.'))
-          bus.emit('game:new');
-      },
-      'Start a new city',
-    ),
+    button('menu-button', 'Load', () => void loadCity(), 'Load the saved city'),
+    button('menu-button', 'New', () => void newCity(), 'Start a new city'),
   );
 
   bar.append(title, stats, tax, demand.root, speeds, menu);

@@ -19,6 +19,9 @@ export interface PlanTile extends Point {
 }
 
 /** What a command would do, computed without changing anything; drives the ghost preview. */
+/** Why a command cannot run, for callers that react differently to each case. */
+export type PlanProblem = 'blocked' | 'outOfBounds' | 'nothingToDo' | 'notEnoughMoney';
+
 export interface Plan {
   /** Tiles that would change (`ok`) or that block the command (`!ok`). */
   tiles: PlanTile[];
@@ -28,6 +31,8 @@ export interface Plan {
   cost: number;
   valid: boolean;
   /** Why the command cannot run, when it is not valid. */
+  problem: PlanProblem | null;
+  /** The same, as a sentence for the player. */
   reason: string | null;
 }
 
@@ -58,9 +63,9 @@ function zoneVerdict(tile: Tile, zone: ZoneType): Verdict {
   return tile.stage === 'empty' ? 'build' : 'blocked';
 }
 
-function makePlan(tiles: PlanTile[], reason: string | null): Plan {
+function makePlan(tiles: PlanTile[], problem: PlanProblem | null = null, reason = ''): Plan {
   const count = tiles.filter((t) => t.ok).length;
-  return { tiles, count, cost: 0, valid: reason === null, reason };
+  return { tiles, count, cost: 0, valid: problem === null, problem, reason: problem && reason };
 }
 
 function tileAt(state: SimState, p: Point): Tile {
@@ -81,8 +86,9 @@ function planPath(state: SimState, points: Point[], verdict: (tile: Tile) => Ver
     tiles.push({ ...p, ok: v === 'build' });
     blocked ||= v === 'blocked';
   }
-  if (blocked) return makePlan(tiles, 'Something is in the way.');
-  return makePlan(tiles, tiles.length === 0 ? 'Already built.' : null);
+  if (blocked) return makePlan(tiles, 'blocked', 'Something is in the way.');
+  if (tiles.length === 0) return makePlan(tiles, 'nothingToDo', 'Already built.');
+  return makePlan(tiles);
 }
 
 function planZone(state: SimState, zone: ZoneType, from: Point, to: Point): Plan {
@@ -92,8 +98,8 @@ function planZone(state: SimState, zone: ZoneType, from: Point, to: Point): Plan
     const v = zoneVerdict(tileAt(state, p), zone);
     if (v !== 'skip') tiles.push({ ...p, ok: v === 'build' });
   }
-  const plan = makePlan(tiles, null);
-  return plan.count > 0 ? plan : makePlan(tiles, 'Nothing to zone here.');
+  const plan = makePlan(tiles);
+  return plan.count > 0 ? plan : makePlan(tiles, 'nothingToDo', 'Nothing to zone here.');
 }
 
 /** Top-left anchored footprint of a power plant. */
@@ -115,8 +121,9 @@ function planPowerPlant(state: SimState, at: Point): Plan {
     tiles.push({ ...p, ok });
     blocked ||= !ok;
   }
-  if (!fits) return makePlan(tiles, 'Does not fit on the map.');
-  return makePlan(tiles, blocked ? 'Something is in the way.' : null);
+  if (!fits) return makePlan(tiles, 'outOfBounds', 'Does not fit on the map.');
+  if (blocked) return makePlan(tiles, 'blocked', 'Something is in the way.');
+  return makePlan(tiles);
 }
 
 function planBulldoze(state: SimState, from: Point, to: Point): Plan {
@@ -136,7 +143,8 @@ function planBulldoze(state: SimState, from: Point, to: Point): Plan {
     }
   }
   const tiles = [...indices].sort((a, b) => a - b).map((i) => ({ ...toPoint(state, i), ok: true }));
-  return makePlan(tiles, tiles.length === 0 ? 'Nothing to bulldoze.' : null);
+  if (tiles.length === 0) return makePlan(tiles, 'nothingToDo', 'Nothing to bulldoze.');
+  return makePlan(tiles);
 }
 
 /** Works out what a command would do and cost, without changing the state. */
@@ -146,6 +154,7 @@ export function planCommand(state: SimState, command: Command): Plan {
   // Free commands (like changing taxes) stay possible while in debt.
   if (plan.valid && plan.cost > 0 && plan.cost > state.funds) {
     plan.valid = false;
+    plan.problem = 'notEnoughMoney';
     plan.reason = 'Not enough money.';
   }
   return plan;
@@ -164,7 +173,7 @@ function planTiles(state: SimState, command: Command): Plan {
     case 'bulldoze':
       return planBulldoze(state, command.from, command.to);
     case 'setTaxRate':
-      return makePlan([], null);
+      return makePlan([]);
   }
 }
 

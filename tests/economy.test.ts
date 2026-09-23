@@ -65,6 +65,7 @@ describe('build costs', () => {
     const result = sim.execute({ type: 'placeRoad', from: at(0, 0), to: at(3, 0) });
     expect(result.ok).toBe(false);
     expect(result.reason).toBe('Not enough money.');
+    expect(result.plan.problem).toBe('notEnoughMoney');
     expect(result.plan.cost).toBe(4 * costs.road);
     expect(sim.state.funds).toBe(costs.road * 3);
     expect(tileAt(sim.state, 0, 0).kind).toBe('empty');

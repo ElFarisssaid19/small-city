@@ -28,9 +28,7 @@ bus.on('tile:selected', (tile) => view.setSelection(tile));
 createUI(hud, bus);
 bus.emit('tool:changed', 'select');
 game.start();
-bus.emit('notice', {
-  message: restored
-    ? `Welcome back! Continuing your ${restored.slot === 'auto' ? 'autosaved' : 'saved'} city.`
-    : 'Welcome to Small City. Build a road, zone some land and add a power plant.',
-  tone: 'info',
-});
+if (restored) {
+  const which = restored.slot === 'auto' ? 'autosaved' : 'saved';
+  bus.emit('toast', { message: `Welcome back! Continuing your ${which} city.`, kind: 'info' });
+}

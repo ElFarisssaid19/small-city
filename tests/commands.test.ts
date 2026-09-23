@@ -33,6 +33,7 @@ describe('command validation', () => {
     run(sim, { type: 'placeZone', zone: 'residential', from: at(3, 0), to: at(3, 0) });
     const blocked = sim.preview({ type: 'placeRoad', from: at(0, 0), to: at(6, 0) });
     expect(blocked.valid).toBe(false);
+    expect(blocked.problem).toBe('blocked');
     expect(blocked.tiles.find((t) => t.x === 3)?.ok).toBe(false);
 
     run(sim, { type: 'placePowerLine', from: at(0, 2), to: at(6, 2) });
@@ -52,6 +53,8 @@ describe('command validation', () => {
       to: at(4, 2),
     });
     expect(plan.valid).toBe(true);
+    expect(plan.problem).toBeNull();
+    expect(plan.reason).toBeNull();
     expect(plan.count).toBe(10);
     expect(plan.tiles.filter((t) => !t.ok)).toHaveLength(5);
 
@@ -69,7 +72,9 @@ describe('command validation', () => {
   it('needs the whole plant footprint free and on the map', () => {
     const sim = newSim({ size: 8 });
     const edge = 8 - CONFIG.power.plantSize + 1;
-    expect(sim.preview({ type: 'placePowerPlant', at: at(edge, 0) }).reason).toMatch(/fit/);
+    const offMap = sim.preview({ type: 'placePowerPlant', at: at(edge, 0) });
+    expect(offMap.problem).toBe('outOfBounds');
+    expect(offMap.reason).toMatch(/fit/);
     run(sim, { type: 'placeRoad', from: at(1, 1), to: at(1, 1) });
     expect(sim.preview({ type: 'placePowerPlant', at: at(0, 0) }).valid).toBe(false);
     run(sim, { type: 'placePowerPlant', at: at(3, 3) });
@@ -85,9 +90,9 @@ describe('command validation', () => {
       for (let y = 0; y <= 2; y++) expect(tileAt(sim.state, x, y).kind).toBe('empty');
     }
     expect(tileAt(sim.state, 0, 0).kind).toBe('road');
-    expect(sim.execute({ type: 'bulldoze', from: at(9, 9), to: at(10, 10) }).reason).toMatch(
-      /Nothing/,
-    );
+    const nothing = sim.execute({ type: 'bulldoze', from: at(9, 9), to: at(10, 10) });
+    expect(nothing.plan.problem).toBe('nothingToDo');
+    expect(nothing.reason).toMatch(/Nothing/);
   });
 
   it('leaves the state untouched when previewing', () => {

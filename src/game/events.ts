@@ -1,4 +1,4 @@
-import type { Command, Plan } from '../sim/commands';
+import type { Command, Plan, PlanProblem } from '../sim/commands';
 import type { Point, SimState } from '../sim/types';
 import type { ToolId } from './tools';
 
@@ -9,7 +9,12 @@ export interface PreviewInfo {
   clientY: number;
 }
 
-export type NoticeTone = 'info' | 'warn' | 'error';
+export type ToastKind = 'info' | 'success' | 'warning' | 'error';
+
+export interface Toast {
+  message: string;
+  kind: ToastKind;
+}
 
 /**
  * Every message that crosses a layer boundary. Requests flow from input/UI to
@@ -19,7 +24,7 @@ export interface GameEvents {
   /** Ask the simulation to change the map. */
   command: Command;
   /** A command was refused, with the reason. */
-  'command:rejected': { reason: string };
+  'command:rejected': { reason: string; problem: PlanProblem | null };
   /** The simulation advanced or changed. */
   'sim:updated': Readonly<SimState>;
 
@@ -36,5 +41,6 @@ export interface GameEvents {
   'game:save': void;
   'game:load': void;
 
-  notice: { message: string; tone: NoticeTone };
+  /** A short, non-blocking message for the player. */
+  toast: Toast;
 }
