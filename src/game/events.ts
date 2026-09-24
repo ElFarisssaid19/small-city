@@ -1,5 +1,6 @@
 import type { Command, Plan, PlanProblem } from '../sim/commands';
 import type { Point, SimState } from '../sim/types';
+import type { OverlayId } from '../render/overlays';
 import type { ToolId } from './tools';
 
 export interface PreviewInfo {
@@ -36,6 +37,13 @@ export interface GameEvents {
   'preview:changed': PreviewInfo | null;
   'tile:hovered': Point | null;
   'tile:selected': Point | null;
+
+  /** The data overlay shown on the map, or none. */
+  'overlay:changed': OverlayId | null;
+  /** Open or close the budget panel. */
+  'budget:toggle': void;
+  /** Open or close the settings panel. */
+  'settings:toggle': void;
 
   /** Low quality rendering (no shadows) for weak devices. */
   'settings:lowQuality': boolean;

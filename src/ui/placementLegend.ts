@@ -23,8 +23,19 @@ export function createPlacementLegend(bus: EventBus<GameEvents>): HTMLElement {
     swatch(overlay.power, 'Power'),
     swatch(overlay.both, 'Both'),
   );
+  // The guide only shows while zoning and no data overlay is on.
+  let zoning = false;
+  let dataOverlay = false;
+  const refresh = () => {
+    legend.hidden = !zoning || dataOverlay;
+  };
   bus.on('tool:changed', (tool) => {
-    legend.hidden = !isZoneTool(tool);
+    zoning = isZoneTool(tool);
+    refresh();
+  });
+  bus.on('overlay:changed', (id) => {
+    dataOverlay = id !== null;
+    refresh();
   });
   return legend;
 }

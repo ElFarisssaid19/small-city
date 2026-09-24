@@ -4,7 +4,8 @@ import { CONFIG } from '../sim/config';
 import { inspectTile } from '../sim/inspect';
 import type { TileInfo } from '../sim/inspect';
 import type { Point, SimState, Tile, ZoneType } from '../sim/types';
-import { missingRequirement, zoneChecklist } from '../sim/zones';
+import { SERVICE_TYPES } from '../sim/types';
+import { levelLimit, missingRequirement, zoneChecklist } from '../sim/zones';
 import type { Requirement } from '../sim/zones';
 import { formatNumber } from '../core/format';
 import { button, el } from './dom';
@@ -85,7 +86,24 @@ function rowsOf(info: TileInfo, state: Readonly<SimState>): [string, string][] {
   }
   if (tile.kind === 'powerLine' || tile.hasLine) rows.push(['Live', yesNo(tile.powered)]);
 
+  if (info.service && tile.service) {
+    const missing = missingRequirement(state, state.tiles[tile.anchor]);
+    rows.push([
+      'Working',
+      info.service.active ? 'Yes' : `No: needs ${missing === 'road' ? 'a road nearby' : 'power'}`,
+    ]);
+    rows.push(['Reach', `${info.service.radius} tiles`]);
+    rows.push(['Upkeep', `$${CONFIG.services[tile.service].upkeep}/month`]);
+  }
+
+  if (tile.fire > 0) rows.push(['On fire', `${tile.fire} day${tile.fire === 1 ? '' : 's'} left`]);
+
   if (tile.kind === 'zone') {
+    const limit = levelLimit(tile);
+    if (limit.needs === 'school') rows.push(['Max level', `${limit.cap} (level 3 needs a school)`]);
+    if (limit.needs === 'landValue') {
+      rows.push(['Max level', `${limit.cap} (next needs land value ${limit.landValue})`]);
+    }
     if (tile.zone === 'residential') {
       rows.push(['Residents', formatNumber(tile.residents)]);
       rows.push(['Employed', `${formatNumber(tile.employed)} / ${formatNumber(info.workforce)}`]);
@@ -110,8 +128,32 @@ export function createInfoPanel(bus: EventBus<GameEvents>): HTMLElement {
   checklist.setAttribute('aria-label', 'Requirements to grow');
   const advice = el('p', 'info-advice');
   const list = el('dl', 'info-rows');
+  const area = el('dl', 'info-rows info-area');
   const close = button('info-close', '×', () => bus.emit('tile:selected', null), 'Close');
-  panel.append(close, heading, where, stage, checklist, advice, list);
+  panel.append(close, heading, where, stage, checklist, advice, list, area);
+
+  /** Land value, pollution, crime as small meters, then which services reach the tile. */
+  const renderArea = (tile: Readonly<Tile>) => {
+    const meter = (label: string, value: number, tone: 'good' | 'bad') => {
+      const dd = el('dd', 'meter-row');
+      const bar = el('span', `meter meter-${tone}`);
+      const fill = el('span', 'meter-fill');
+      fill.style.width = `${value}%`;
+      bar.append(fill);
+      dd.append(bar, el('span', 'meter-value', String(value)));
+      return [el('dt', '', label), dd];
+    };
+    const covered = SERVICE_TYPES.map(
+      (s) => `${SERVICE_NAMES[s].split(' ')[0]} ${tile.coverage[s] ? '✓' : '✗'}`,
+    );
+    area.replaceChildren(
+      ...meter('Land value', tile.landValue, 'good'),
+      ...meter('Pollution', tile.pollution, 'bad'),
+      ...meter('Crime', tile.crime, 'bad'),
+      el('dt', '', 'Covered by'),
+      el('dd', 'coverage-list', covered.join(' · ')),
+    );
+  };
 
   const renderZone = (tile: Readonly<Tile>, state: Readonly<SimState>) => {
     const checks = zoneChecklist(state, tile);
@@ -156,6 +198,7 @@ export function createInfoPanel(bus: EventBus<GameEvents>): HTMLElement {
     heading.textContent = titleOf(info);
     where.textContent = `Tile ${info.x}, ${info.y}`;
     renderZone(info.tile, latest);
+    renderArea(info.tile);
     list.replaceChildren(
       ...rowsOf(info, latest).flatMap(([label, value]) => [
         el('dt', '', label),

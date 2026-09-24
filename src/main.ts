@@ -39,6 +39,7 @@ bus.on('preview:changed', (preview) => view.setPlan(preview?.plan ?? null));
 bus.on('tile:hovered', (tile) => view.setHover(tile));
 bus.on('tile:selected', (tile) => view.setSelection(tile));
 bus.on('tool:changed', (tool) => view.setPlacementOverlay(isZoneTool(tool)));
+bus.on('overlay:changed', (id) => view.setOverlay(id));
 bus.on('settings:lowQuality', (low) => {
   view.setLowQuality(low);
   writeFlag(LOW_QUALITY_FLAG, low);
@@ -47,6 +48,7 @@ bus.on('settings:lowQuality', (low) => {
 createUI(hud, bus);
 bus.emit('tool:changed', 'select');
 bus.emit('settings:lowQuality', lowQuality);
+bus.emit('overlay:changed', null);
 game.start();
 loading.finish();
 

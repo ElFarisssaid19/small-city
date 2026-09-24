@@ -187,6 +187,14 @@ export const CONFIG = {
     },
   },
 
+  /** When the game warns the player (checked each month when the environment updates). */
+  alerts: {
+    /** Average crime at homes and shops that, once reached and still rising, gets a warning. */
+    crime: 25,
+    /** Homes at the pollution distress level that, once reached and growing, get a warning. */
+    pollutedHomes: 3,
+  },
+
   save: {
     /** Bump when the save format changes and add a migration in save.ts. */
     version: 2,

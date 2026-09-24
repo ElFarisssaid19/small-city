@@ -40,6 +40,9 @@ export class Game {
   private lastSpeed = 1;
   /** Whether the last update was short of power, so the warning fires once per shortage. */
   private powerShort = false;
+  /** Last month's crime and polluted-home figures, to warn only while they grow. */
+  private lastCrime = 0;
+  private lastPollutedHomes = 0;
 
   constructor(
     private readonly bus: EventBus<GameEvents>,
@@ -115,6 +118,8 @@ export class Game {
   private replace(sim: Simulation): void {
     this.sim = sim;
     this.powerShort = false;
+    this.lastCrime = 0;
+    this.lastPollutedHomes = 0;
     this.view.setState(sim.state);
     this.bus.emit('tile:selected', null);
     this.bus.emit('sim:updated', sim.state);
@@ -135,6 +140,45 @@ export class Game {
     }
     this.checkPower();
     this.bus.emit('sim:updated', this.sim.state);
+  }
+
+  private reportFires(started: readonly number[], burned: readonly number[]): void {
+    const { width } = this.sim.state;
+    if (started.length > 0) {
+      const at = started[0];
+      const where = `(${at % width}, ${Math.floor(at / width)})`;
+      const what = started.length === 1 ? 'A building is' : `${started.length} buildings are`;
+      this.toast(`Fire! ${what} burning near ${where}.`, 'warning');
+    }
+    if (burned.length > 0) {
+      const what = burned.length === 1 ? 'A building' : `${burned.length} buildings`;
+      this.toast(`${what} burned down. Fire stations put out fires within their reach.`, 'error');
+    }
+  }
+
+  /** Monthly warnings when crime or pollution near homes crosses its threshold and keeps growing. */
+  private checkEnvironment(): void {
+    const { stats, tiles } = this.sim.state;
+    const crime = stats.averageCrime;
+    if (crime >= CONFIG.alerts.crime && crime > this.lastCrime) {
+      this.toast(
+        `Crime is rising (average ${crime}). Build police stations near busy areas.`,
+        'warning',
+      );
+    }
+    this.lastCrime = crime;
+
+    const limit = CONFIG.zones.effects.distressPollution;
+    const polluted = tiles.filter(
+      (t) => t.zone === 'residential' && t.stage === 'developed' && t.pollution >= limit,
+    ).length;
+    if (polluted >= CONFIG.alerts.pollutedHomes && polluted > this.lastPollutedHomes) {
+      this.toast(
+        `Pollution is high around ${polluted} homes. Keep industry and power plants away from housing, or add parks.`,
+        'warning',
+      );
+    }
+    this.lastPollutedHomes = polluted;
   }
 
   /** Warns once when the city starts using more power than its plants supply. */
@@ -165,6 +209,8 @@ export class Game {
       );
     }
     this.checkPower();
+    this.reportFires(report.firesStarted, report.burnedDown);
+    if (report.environmentUpdated) this.checkEnvironment();
     if (report.day % CONFIG.save.autosaveDays === 0) this.save('auto');
     this.bus.emit('sim:updated', this.sim.state);
   }
