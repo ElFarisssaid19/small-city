@@ -1,209 +1,109 @@
 # Small City
 
-A small browser city-builder made with three.js and TypeScript. Lay out roads, zone land for
-homes, shops and industry, run power to it, and balance the budget while the town grows.
+A browser city-builder written from scratch in TypeScript and three.js. Zone land, lay roads, bring power, and watch your city grow.
 
-The city is drawn with low-poly models from Kenney's City Kits: suburban houses, shops and towers,
-factories, roads and power poles.
+**▶ Play it:** https://elfarisssaid19.github.io/small-city/
+
+![Small City](docs/screenshot.png)
 
 ## Features
 
-- **32 × 32 map** in an isometric-style view with pan, zoom and 90° rotation.
-- **Tools,** grouped so the bar fits a phone: Select; Zones (residential, commercial,
-  industrial); Infrastructure (road, power plant, power line); Services (police, fire station,
-  school, park); Bulldoze. Drag to build roads and power lines along an L-shaped path, and zones
-  and bulldozing as rectangles. A ghost preview shows green for tiles that will be built and red for blocked ones,
-  and a label shows the total cost before you let go.
-- **Roads** pick their shape (straight, corner, T, cross, dead end) from their neighbours.
-- **Power:** 2 × 2 plants have a fixed capacity. Power travels through power lines and through
-  touching zones and buildings, but not across roads or empty land. A power line built over a road
-  makes a crossing that carries power. When demand exceeds capacity, the tiles farthest from the
-  plant lose power first.
-- **Zones** develop only with power and a road within 3 tiles. They go from empty lot (a bordered
-  tile) to construction (a scaffold) to levels 1–3, and are abandoned after 20 days without power
-  or road access.
-- **Zone feedback:** empty lots show a floating icon for the first thing they're missing: a road,
-  then power, then demand. Buildings at risk of abandonment blink the same icons. While a zone tool
-  is selected, a placement guide shades tiles with a road in reach, power, or both. A tip explains
-  the basics on first launch.
-- **Services** need road access and power (parks need neither) and cover every tile within their
-  radius:
+- 32×32 map with an isometric camera: pan, zoom and rotate in 90° steps
+- Residential, commercial and industrial zones that grow on their own: empty lot → construction → levels 1–3, and get abandoned when neglected
+- Roads that auto-connect (straight, corner, T, cross, dead end)
+- Power plants and power lines, with capacity limits and lines crossing roads
+- Citizens, jobs within a commute radius, and RCI demand driving growth
+- Real economy: build costs, monthly taxes with an adjustable rate, upkeep and debt
+- Clear feedback: missing-requirement icons on zones, a requirement checklist, and road/power overlays while zoning
+- In-game dialogs and toast notifications
+- Autosave and manual save/load in the browser, with a versioned save format
+- Low-poly 3D models with shadows, plus a low-quality mode for weak phones
+- Mouse, touch and keyboard controls
 
-  | Service      | Size | Cost   | Upkeep/month | Radius | Power | Effect                                         |
-  | ------------ | ---- | ------ | ------------ | ------ | ----- | ---------------------------------------------- |
-  | Police       | 1×1  | $500   | $60          | 8      | 3     | Cuts crime to 35 %; +10 land value             |
-  | Fire station | 1×1  | $500   | $60          | 8      | 3     | No fires start; puts out fires; +10 land value |
-  | School       | 2×2  | $1,500 | $120         | 10     | 6     | Homes can reach level 3; +15 land value        |
-  | Park         | 1×1  | $150   | $10          | 4      | –     | Soaks up pollution; +20 land value             |
+## How to play
 
-- **Pollution** comes from industry (more at higher levels) and power plants, and fades with
-  distance over 6 tiles. **Crime** grows with the residents and shop workers nearby.
-  **Land value** (0–100) is 40, plus a bonus for each service covering the tile, minus 0.6 ×
-  pollution and 0.4 × crime. These are recomputed once a game month and after every build.
-- **Growth effects:** homes grow faster on valuable, clean land and need a school for level 3;
-  shops need land value 35 for level 2 and 60 for level 3; industry ignores pollution but dislikes
-  crime. Pollution of 60+ (homes, shops) or crime of 55+ makes buildings lose levels and, in the
-  end, be abandoned.
-- **Fires:** buildings outside fire station cover may catch fire. A fire burns for 4 days and
-  leaves an empty lot, unless a fire station comes to cover it. Disasters can be turned off in
-  Settings.
-- **Overlays:** land value, pollution, crime, police, fire, school and power as a heat map with a
-  legend (Overlay button or `O`).
-- **Budget:** this month's estimate and last month's figures, with income by zone type and
-  expenses for roads, power and each service (Budget button or `B`).
-- **Population and jobs:** homes house residents, and shops and industry offer jobs. Workers take
-  the nearest jobs within a commute radius. RCI demand bars show what the city needs next.
-- **Economy:** starting funds, build costs, monthly upkeep and taxes with an adjustable rate.
-  Taxes above 9 % dampen demand and lower rates boost it. You can't build what you can't afford,
-  and a warning appears while the city is in debt.
-- **Info panel:** click a tile to see its type and stage, a ✓/✗ checklist of road, power and
-  demand with advice on what to fix, its residents or jobs, its level cap, land value, pollution
-  and crime, and which services cover it.
-- **Dialogs and toasts:** confirmations use an in-game modal (Esc cancels, Enter confirms), and
-  short messages appear as toasts in the corner (info, success, warning, error).
-- **Save and load:** manual save and load, a new-game button, and an autosave every 30 game days,
-  all in `localStorage` with a versioned format. Saves from earlier versions are migrated, not
-  rejected.
-- **Time:** one game day per second at 1×, plus pause, 2× and 4×.
-- **Low-poly 3D:** 2–3 model variants per zone and level, chosen from the tile coordinates so they
-  stay the same across reloads. Buildings face their nearest road, and abandoned buildings turn
-  grey. Models load behind a progress bar; if one fails, that building type falls back to a simple
-  box and a toast says so.
-- **Settings** (⚙): Disasters on/off, and Low quality, which turns off shadows and high-DPI
-  rendering for weak phones and is remembered between visits.
+Zones don't build themselves right away. A zone grows only when it has:
+
+1. **A road** within 3 tiles
+2. **Power**: build a power plant and connect it with power lines (power also passes between touching zones)
+3. **Demand**: start with homes; shops and factories need residents first
+
+Click any tile with the Select tool to see what it's missing.
 
 ## Controls
 
-| Action                 | Mouse                | Touch                 | Keyboard                 |
-| ---------------------- | -------------------- | --------------------- | ------------------------ |
-| Use the current tool   | Left click / drag    | One-finger tap / drag |                          |
-| Pan                    | Right or middle drag | Two-finger drag       | Arrow keys               |
-| Zoom                   | Wheel                | Pinch                 | `+` / `-`                |
-| Rotate 90°             |                      |                       | `Q` / `E`                |
-| Choose a tool          | Toolbar              | Toolbar               | `1`–`8`, `P` `F` `S` `K` |
-| Cycle map overlays     | Overlay button       | Overlay button        | `O`                      |
-| Budget                 | Budget button        | Budget button         | `B`                      |
-| Pause / resume         | Speed buttons        | Speed buttons         | `Space`                  |
-| Cancel drag / deselect |                      |                       | `Esc`                    |
+| Action | Mouse | Touch | Keys |
+|---|---|---|---|
+| Use tool | Left click / drag | One finger | |
+| Pan | Right or middle drag | Two fingers | Arrow keys |
+| Zoom | Wheel | Pinch | `+` / `-` |
+| Rotate 90° | | | `Q` / `E` |
+| Choose tool | Toolbar | Toolbar | `1`–`8` |
+| Pause / cancel | | | `Space` / `Esc` |
 
-**Getting started:** draw a road, zone residential land on one side and industrial on the other
-(within 3 tiles of the road), place a power plant touching a zone, and link zones on opposite sides
-of the road with a power line across it. Then press 2× and watch the demand bars.
+## Under the hood
 
-## Run locally
-
-Requires Node.js 22.13 or newer (the current LTS is recommended).
-
-```sh
-npm ci
-npm run dev        # http://localhost:5173/small-city/
-```
-
-| Script            | What it does                            |
-| ----------------- | --------------------------------------- |
-| `npm run dev`     | Vite dev server with hot reload         |
-| `npm run build`   | Type-check, then build to `dist/`       |
-| `npm run preview` | Serve the production build locally      |
-| `npm test`        | Run the Vitest suite once               |
-| `npm run lint`    | ESLint plus a Prettier formatting check |
-| `npm run format`  | Format everything with Prettier         |
-
-## Architecture
+- **Pure simulation:** all game rules live in `src/sim`, with no three.js, no DOM and a seeded RNG, so every run is deterministic and fully unit-testable.
+- **Layer rules enforced by ESLint:** the sim can't import three.js or use `Math.random`, and the renderer can't issue commands.
+- **Fixed-step game loop** decoupled from rendering, with pause, 1×, 2× and 4×.
+- **Fast rendering:** one `InstancedMesh` per model and material.
+- **Typed event bus** between sim, render, input and UI; no globals.
 
 ```
 src/
-  core/     typed event bus, fixed-step game loop, number formatting
-  sim/      pure, deterministic simulation (no three.js, no DOM, seeded RNG)
-  render/   three.js scene that reads sim state; one InstancedMesh per model part
-  input/    pointer (mouse + touch) and keyboard → tile picking → commands
-  ui/       plain HTML/CSS overlays: stats bar, toolbar, info panel, notices
-  game/     wiring: Game (owns sim + loop), event map, tools, save storage
-  main.ts   creates the layers and connects them through one event bus
-tests/      Vitest unit tests for the simulation and core
+  core/    event bus, fixed-step loop, formatting
+  sim/     deterministic simulation (config.ts holds every gameplay number)
+  render/  three.js view, camera, instanced layers
+  input/   mouse, touch and keyboard → tile picking → commands
+  ui/      stats, demand, toolbar, info panel, dialogs, toasts
+  game/    wiring, tools, saves
+tests/     Vitest unit tests
 ```
 
-- **The simulation** (`src/sim`) is plain data plus functions. It changes only through
-  `Simulation.execute(command)` and `Simulation.tick()`, which advances one game day. All
-  randomness comes from a seeded RNG whose state is saved with the game, so the same seed and
-  commands always produce the same city. Derived data such as power, road access and jobs is
-  recomputed from grid-based lookups each day (multi-source BFS, a bucketed spatial index for
-  jobs), never with per-tile full-map scans.
-- **The renderer** (`src/render`) redraws its instanced meshes when `state.revision` changes and
-  never changes game state.
-- **Input and UI** only send commands (`placeRoad`, `placeZone`, `bulldoze`, `setTaxRate`, …) and
-  requests (`speed:set`, `game:save`, …) on the event bus. Nothing is attached to `window`.
-- **ESLint enforces the boundaries.** The sim may not import three.js or other layers, call
-  `Math.random` or touch DOM globals, and the renderer may not import the command or simulation
-  modules.
-- **Tuning:** every gameplay number (costs, capacities, radii, growth rates, demand, taxes) lives in
-  [`src/sim/config.ts`](src/sim/config.ts). Colours and proportions live in
-  [`src/render/palette.ts`](src/render/palette.ts), and which Kenney model draws what (variants,
-  road pieces and their rotations, the power plant parts) in
-  [`src/render/models/catalog.ts`](src/render/models/catalog.ts).
+## Tech stack
 
-## Tests
+TypeScript · three.js · Vite · Vitest · ESLint · Prettier · GitHub Actions · GitHub Pages
 
-```sh
-npm test
+## Run locally
+
+```bash
+git clone https://github.com/ElFarisssaid19/small-city.git
+cd small-city
+npm install
+npm run dev
 ```
 
-The suite covers the rules of the simulation:
+Open http://localhost:5173/small-city/
 
-- road shapes and rotations for every neighbour combination, and auto-connection when placing
-- power flow through lines and zones but not roads or empty land, crossings, separate networks,
-  multi-tile plants, and brownout order when demand exceeds capacity
-- road access within the radius, measured as Manhattan distance
-- zone growth, construction, upgrades, decline, abandonment and recovery
-- which requirement an empty lot or building is missing (road, then power, then demand)
-- service coverage radius, 2×2 footprints, road and power requirements, power draw
-- pollution spread, falloff and cap, park clean-up; crime from density and police; the land value
-  formula
-- growth effects: appeal, school and land value level caps, decline and abandonment from pollution
-  and crime
-- fires: deterministic for a seed, none with disasters off or inside fire cover, burning down,
-  being put out
-- service costs and upkeep in the budget breakdown, and v1 → v2 save migration
-- job matching within the commute radius, nearest first, never over capacity
-- RCI demand and the effect of taxes
-- economy: per-tile and per-plant costs, refusing unaffordable builds, upkeep, taxes, monthly
-  settlement, debt, and tax rate limits
-- command validation (blocked roads, zone skipping, plant footprints, bulldozing)
-- save/load round-trips that continue identically, plus rejection of malformed or newer saves
-- seeded determinism, the event bus and the fixed-step loop
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server with hot reload |
+| `npm test` | Unit tests |
+| `npm run lint` | ESLint |
+| `npm run build` | Production build in `dist/` |
+| `npm run preview` | Serve the production build |
 
-## Deploy to GitHub Pages
-
-`.github/workflows/deploy.yml` runs on every push to `main`. It installs dependencies, lints, tests
-and builds, then publishes `dist/` to GitHub Pages.
-
-1. Push the repository to GitHub as `small-city`.
-2. In **Settings → Pages**, set **Source** to **GitHub Actions**.
-3. Push to `main`. The site appears at `https://<user>.github.io/small-city/`.
-
-If the repository has a different name, change `base` in [`vite.config.ts`](vite.config.ts) to
-match.
+Every push to `main` runs the tests, builds, and deploys to GitHub Pages.
 
 ## Roadmap
 
-- **Phase 2: a city that feels alive.** ~~Low-poly models~~ (done), commutes along the road
-  network instead of a radius, visible traffic, and data overlays for power, traffic, land value
-  and pollution.
-- **Services and land value.** ~~Police, fire, schools, parks, land value, pollution, crime~~
-  (done). Next: clinics, and service budgets that trade coverage for cost.
-- **Terrain.** Water, elevation, bridges and trees to clear.
-- **Deeper economy.** Per-department budgets, loans, yearly reports with charts, separate tax rates
-  per zone.
-- **Scale.** Run the simulation in a Web Worker, support 64 × 64 and larger maps, and render in
-  chunks.
-- **Quality of life.** Undo, several save slots, save export and import, sound, and a keyboard tile
-  cursor for accessibility.
-- **Testing.** End-to-end tests of the UI with Playwright.
+- [ ] Services: police, fire, schools and parks
+- [ ] Land value, pollution and crime, with map overlays
+- [ ] Traffic along the road network
+- [ ] Terrain: water, bridges, trees
+- [ ] Simulation in a Web Worker for bigger maps
+- [ ] Undo, multiple save slots, sound
+- [ ] End-to-end UI tests with Playwright
 
 ## Credits
 
-3D models by Kenney (kenney.nl), CC0
+- 3D models by [Kenney](https://kenney.nl) (CC0)
+- [three.js](https://threejs.org) (MIT)
 
 ## License
 
-Code: [MIT](LICENSE) © 2026 Said El Fariss. The models in `public/models/` are CC0; see
-[`public/models/LICENSE-kenney.txt`](public/models/LICENSE-kenney.txt).
+See [LICENSE](LICENSE).
+
+---
+
+Made by [Said El Fariss](https://github.com/ElFarisssaid19)
