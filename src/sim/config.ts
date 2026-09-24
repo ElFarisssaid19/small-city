@@ -189,7 +189,7 @@ export const CONFIG = {
 
   save: {
     /** Bump when the save format changes and add a migration in save.ts. */
-    version: 1,
+    version: 2,
     autosaveDays: 30,
   },
 } as const;

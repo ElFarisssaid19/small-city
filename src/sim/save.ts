@@ -25,7 +25,28 @@ interface SaveFile {
  * Upgrades a save's `state` from version N to N + 1, keyed by N.
  * Add an entry here whenever `CONFIG.save.version` is bumped.
  */
-const MIGRATIONS: Record<number, (state: unknown) => unknown> = {};
+const MIGRATIONS: Record<number, (state: unknown) => unknown> = {
+  // v2 added services, fires, pollution, crime, land value, the disasters
+  // setting and the budget breakdown. Old cities get neutral defaults and
+  // their environment is computed when the game loads them.
+  1: (state) => {
+    if (!isRecord(state)) return state;
+    const tileDefaults = { service: null, fire: 0, pollution: 0, crime: 0, landValue: 0 };
+    return {
+      ...state,
+      tiles: Array.isArray(state.tiles)
+        ? (state.tiles as unknown[]).map((tile) =>
+            isRecord(tile) ? { ...tileDefaults, ...tile } : tile,
+          )
+        : state.tiles,
+      lastBudget: isRecord(state.lastBudget)
+        ? { ...emptyBudget(), ...state.lastBudget }
+        : state.lastBudget,
+      disasters: true,
+      environmentReady: false,
+    };
+  },
+};
 
 const KINDS: readonly TileKind[] = ['empty', 'road', 'powerLine', 'powerPlant', 'zone', 'service'];
 const STAGES: readonly ZoneStage[] = ['empty', 'construction', 'developed', 'abandoned'];
@@ -85,6 +106,12 @@ function readInteger(
   return value;
 }
 
+function readBoolean(source: Record<string, unknown>, key: string): boolean {
+  const value = source[key];
+  if (typeof value !== 'boolean') throw new SaveError(`The save's "${key}" is not true or false.`);
+  return value;
+}
+
 function readOneOf<T extends string>(
   source: Record<string, unknown>,
   key: string,
@@ -107,12 +134,13 @@ function readTile(raw: unknown, count: number): Tile {
   tile.neglect = readInteger(raw, 'neglect', 0, Number.MAX_SAFE_INTEGER);
   tile.residents = readInteger(raw, 'residents', 0, Number.MAX_SAFE_INTEGER);
   tile.anchor = readInteger(raw, 'anchor', -1, count - 1);
-  tile.service = raw.service == null ? null : readOneOf<ServiceType>(raw, 'service', SERVICE_TYPES);
-  if (raw.fire !== undefined) tile.fire = readInteger(raw, 'fire', 0, Number.MAX_SAFE_INTEGER);
-  // Environment fields are saved so a loaded city continues exactly; older saves lack them.
-  for (const field of ['pollution', 'crime', 'landValue'] as const) {
-    if (raw[field] !== undefined) tile[field] = readInteger(raw, field, 0, 100);
-  }
+  tile.service =
+    raw.service === null ? null : readOneOf<ServiceType>(raw, 'service', SERVICE_TYPES);
+  tile.fire = readInteger(raw, 'fire', 0, Number.MAX_SAFE_INTEGER);
+  // Environment fields are saved so a loaded city continues exactly.
+  tile.pollution = readInteger(raw, 'pollution', 0, 100);
+  tile.crime = readInteger(raw, 'crime', 0, 100);
+  tile.landValue = readInteger(raw, 'landValue', 0, 100);
   if (tile.kind === 'zone' && tile.zone === null) {
     throw new SaveError('A zone tile has no zone type.');
   }
@@ -152,19 +180,15 @@ function readState(raw: unknown): SimState {
     ZONE_TYPES.map((zone) => [zone, Math.min(Math.max(readNumber(demandRaw, zone), -1), 1)]),
   ) as Demand;
   const budgetRaw = isRecord(raw.lastBudget) ? raw.lastBudget : {};
+  const incomeRaw = isRecord(budgetRaw.income) ? budgetRaw.income : {};
+  const expensesRaw = isRecord(budgetRaw.expenses) ? budgetRaw.expenses : {};
   const lastBudget: MonthlyBudget = {
     ...emptyBudget(),
     taxes: readNumber(budgetRaw, 'taxes'),
     upkeep: readNumber(budgetRaw, 'upkeep'),
   };
-  if (isRecord(budgetRaw.income)) {
-    const income = budgetRaw.income;
-    for (const zone of ZONE_TYPES) lastBudget.income[zone] = readNumber(income, zone);
-  }
-  if (isRecord(budgetRaw.expenses)) {
-    const expenses = budgetRaw.expenses;
-    for (const kind of EXPENSE_KINDS) lastBudget.expenses[kind] = readNumber(expenses, kind);
-  }
+  for (const zone of ZONE_TYPES) lastBudget.income[zone] = readNumber(incomeRaw, zone);
+  for (const kind of EXPENSE_KINDS) lastBudget.expenses[kind] = readNumber(expensesRaw, kind);
 
   return {
     width,
@@ -174,10 +198,10 @@ function readState(raw: unknown): SimState {
     day: readInteger(raw, 'day', 0, Number.MAX_SAFE_INTEGER),
     funds: readNumber(raw, 'funds'),
     taxRate: readInteger(raw, 'taxRate', CONFIG.economy.taxRate.min, CONFIG.economy.taxRate.max),
-    disasters: raw.disasters !== false,
+    disasters: readBoolean(raw, 'disasters'),
     lastBudget,
     tiles,
-    environmentReady: raw.environmentReady === true,
+    environmentReady: readBoolean(raw, 'environmentReady'),
     demand,
     // Derived values are recomputed by the Simulation when it wraps the state.
     stats: emptyStats(),
