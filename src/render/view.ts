@@ -3,13 +3,17 @@ import type { Plan } from '../sim/commands';
 import type { Point, SimState } from '../sim/types';
 import { CameraRig } from './camera';
 import type { ModelLibrary } from './models/library';
+import { DataOverlay } from './layers/dataOverlay';
+import { FireLayer } from './layers/fires';
 import { RequirementIcons } from './layers/icons';
 import { OverlayLayer } from './layers/overlay';
 import { PlacementOverlay } from './layers/placement';
 import { PowerLayer } from './layers/power';
 import { RoadLayer } from './layers/roads';
+import { ServiceLayer } from './layers/services';
 import { createTerrain } from './layers/terrain';
 import { ZoneLayer } from './layers/zones';
+import type { OverlayId } from './overlays';
 import { PALETTE } from './palette';
 
 interface Layers {
@@ -17,8 +21,11 @@ interface Layers {
   roads: RoadLayer;
   power: PowerLayer;
   zones: ZoneLayer;
+  services: ServiceLayer;
+  fires: FireLayer;
   icons: RequirementIcons;
   placement: PlacementOverlay;
+  data: DataOverlay;
   overlay: OverlayLayer;
 }
 
@@ -35,6 +42,7 @@ export class CityView {
   private layers: Layers;
   private drawnRevision = -1;
   private placementVisible = false;
+  private overlay: OverlayId | null = null;
   private lastFrame: number | null = null;
 
   constructor(
@@ -98,8 +106,23 @@ export class CityView {
   setPlacementOverlay(visible: boolean): void {
     if (this.placementVisible === visible) return;
     this.placementVisible = visible;
-    this.layers.placement.visible = visible;
-    this.layers.placement.update(this.state);
+    this.applyOverlays();
+  }
+
+  /** Shows a data overlay (land value, pollution…) as a heat map, or none. */
+  setOverlay(id: OverlayId | null): void {
+    if (this.overlay === id) return;
+    this.overlay = id;
+    this.applyOverlays();
+  }
+
+  /** A data overlay replaces the zoning guide while it is shown. */
+  private applyOverlays(): void {
+    const { placement, data } = this.layers;
+    placement.visible = this.placementVisible && this.overlay === null;
+    data.overlay = this.overlay;
+    placement.update(this.state);
+    data.update(this.state);
   }
 
   setPlan(plan: Plan | null): void {
@@ -133,15 +156,20 @@ export class CityView {
     this.rig.update(dt);
 
     if (this.state.revision !== this.drawnRevision) {
-      const { roads, power, zones, icons, placement } = this.layers;
+      const { roads, power, zones, services, fires, icons, placement, data } = this.layers;
       roads.update(this.state);
       power.update(this.state);
       zones.update(this.state);
-      icons.update(this.state, (i) => zones.heightAt(i));
+      services.update(this.state);
+      const heightAt = (i: number) => Math.max(zones.heightAt(i), services.heightAt(i));
+      icons.update(this.state, heightAt);
+      fires.update(this.state, heightAt);
       placement.update(this.state);
+      data.update(this.state);
       this.drawnRevision = this.state.revision;
     }
     this.layers.icons.frame(now, this.rig.camera);
+    this.layers.fires.frame(now);
     this.renderer.render(this.scene, this.rig.camera);
   }
 
@@ -154,18 +182,25 @@ export class CityView {
       roads: new RoadLayer(capacity, this.library),
       power: new PowerLayer(capacity, this.library),
       zones: new ZoneLayer(capacity, this.library),
+      services: new ServiceLayer(capacity, this.library),
+      fires: new FireLayer(capacity),
       icons: new RequirementIcons(capacity),
       placement: new PlacementOverlay(capacity),
+      data: new DataOverlay(capacity),
       overlay: new OverlayLayer(capacity),
     };
-    layers.placement.visible = this.placementVisible;
+    layers.placement.visible = this.placementVisible && this.overlay === null;
+    layers.data.overlay = this.overlay;
     layers.root.add(
       createTerrain(width, height),
       layers.roads.group,
       layers.power.group,
       layers.zones.group,
+      layers.services.group,
+      layers.fires.group,
       layers.icons.group,
       layers.placement.mesh,
+      layers.data.mesh,
       layers.overlay.group,
     );
     this.scene.add(layers.root);

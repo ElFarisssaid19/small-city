@@ -58,6 +58,12 @@ export const PLANT_PARTS: readonly {
   { model: 'industrial/chimney-large', x: 0.48, z: -0.5, width: 0.82 },
 ];
 
+/** Kit pieces scattered on a park lawn. */
+export const PARK_MODELS = {
+  trees: ['suburban/tree-large', 'suburban/tree-small'],
+  path: 'suburban/path-stones-long',
+} as const;
+
 /** Every model the game uses, loaded once before it starts. */
 export function allModelIds(): string[] {
   const ids = new Set<string>([POLE_MODEL]);
@@ -66,5 +72,6 @@ export function allModelIds(): string[] {
   }
   for (const { model } of Object.values(ROAD_MODELS)) ids.add(model);
   for (const { model } of PLANT_PARTS) ids.add(model);
+  for (const id of [...PARK_MODELS.trees, PARK_MODELS.path]) ids.add(id);
   return [...ids];
 }

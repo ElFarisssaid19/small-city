@@ -36,6 +36,18 @@ export const PALETTE = {
     power: 0xffd21f,
     demand: 0x8fb3ff,
   },
+  /** Service buildings: walls, a roof in the service's colour, and its badge. */
+  services: {
+    police: { wall: 0xdfe6ee, roof: 0x2f6fd6, badge: '#2f6fd6' },
+    fire: { wall: 0xebe2d6, roof: 0xd6453a, badge: '#d6453a' },
+    school: { wall: 0xf3e6c9, roof: 0xe8913a, badge: '#e8913a' },
+    park: { wall: 0x6cbf57, roof: 0x3f9b4a, badge: '#3f9b4a' },
+  },
+  window: 0x3a4a5e,
+  door: 0x4a4f57,
+  playground: 0xc9b184,
+  flame: [0xffd23f, 0xff8a1f, 0xff4d1a],
+  smoke: 0x5d5d63,
   /** Placement guide shown while a zone tool is selected. */
   overlay: {
     road: 0x7fd6ff,
