@@ -24,12 +24,24 @@ export const PALETTE = {
     industrial: [0xe4b23c, 0xd0922a, 0xae7420],
   } satisfies Record<ZoneType, number[]>,
   construction: 0xd9893b,
+  slab: 0x9a9d9f,
   abandoned: 0x5e544c,
   ghostOk: 0x3ddc84,
   ghostBad: 0xff4d4d,
   hover: 0xffffff,
   selection: 0xffe066,
-  unpowered: 0xffd21f,
+  /** Rings of the floating "what is missing" icons. */
+  requirement: {
+    road: 0xff9f43,
+    power: 0xffd21f,
+    demand: 0x8fb3ff,
+  },
+  /** Placement guide shown while a zone tool is selected. */
+  overlay: {
+    road: 0x7fd6ff,
+    power: 0xffd84d,
+    both: 0x5dff8a,
+  },
 } as const;
 
 /** Building proportions per zone, indexed by level − 1. */
@@ -44,7 +56,8 @@ export const BUILDING = {
     commercial: [0.7, 0.78, 0.82],
     industrial: [0.8, 0.86, 0.9],
   } satisfies Record<ZoneType, number[]>,
-  constructionHeight: 0.18,
+  /** Height of the scaffold that stands on a lot under construction. */
+  scaffoldHeight: 0.42,
 } as const;
 
 export const ROAD = {

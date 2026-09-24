@@ -1,5 +1,5 @@
 import type { Command } from '../sim/commands';
-import type { Point } from '../sim/types';
+import type { Point, ZoneType } from '../sim/types';
 
 export type ToolId =
   | 'select'
@@ -30,6 +30,10 @@ export const TOOLS: readonly ToolDef[] = [
   { id: 'powerLine', label: 'Power line', key: '7', shape: 'line' },
   { id: 'bulldoze', label: 'Bulldoze', key: '8', shape: 'rect' },
 ];
+
+export function isZoneTool(tool: ToolId): tool is ZoneType {
+  return tool === 'residential' || tool === 'commercial' || tool === 'industrial';
+}
 
 /** The command a tool issues for a drag from `from` to `to`; null for the select tool. */
 export function commandFor(tool: ToolId, from: Point, to: Point): Command | null {

@@ -17,8 +17,50 @@ export function capacityOf(zone: ZoneType, level: number): number {
 }
 
 /** A zone can develop and stay occupied only with both power and road access. */
-export function hasService(tile: Tile): boolean {
+export function hasService(tile: Readonly<Tile>): boolean {
   return tile.powered && tile.roadAccess;
+}
+
+/** Empty lots only start building while their zone type is in demand. */
+export function inDemand(demand: number): boolean {
+  return demand > 0;
+}
+
+export type Requirement = 'road' | 'power' | 'demand';
+
+/** What a zone tile has of the things it needs to grow. */
+export interface ZoneChecklist {
+  /** A road within `roadAccessRadius` tiles. */
+  road: boolean;
+  power: boolean;
+  /** Positive demand for this zone type. */
+  demand: boolean;
+}
+
+export function zoneChecklist(
+  state: Readonly<SimState>,
+  tile: Readonly<Tile>,
+): ZoneChecklist | null {
+  if (tile.kind !== 'zone' || tile.zone === null) return null;
+  return { road: tile.roadAccess, power: tile.powered, demand: inDemand(state.demand[tile.zone]) };
+}
+
+/**
+ * The first thing holding a zone tile back, in the order the player should fix
+ * them: road access, then power, then (for empty lots only) demand. Existing
+ * buildings do not need demand to stay, so it is never reported for them.
+ * Returns null when nothing is missing, or for tiles that are not zones.
+ */
+export function missingRequirement(
+  state: Readonly<SimState>,
+  tile: Readonly<Tile>,
+): Requirement | null {
+  const checklist = zoneChecklist(state, tile);
+  if (!checklist) return null;
+  if (!checklist.road) return 'road';
+  if (!checklist.power) return 'power';
+  if (tile.stage === 'empty' && !checklist.demand) return 'demand';
+  return null;
 }
 
 /** Advances every zone lot by one day: growth, construction, upgrades, decline and abandonment. */
@@ -57,7 +99,7 @@ function stepZone(state: SimState, tile: Tile, demand: number, report: ZoneRepor
   tile.neglect = 0;
   switch (tile.stage) {
     case 'empty':
-      if (demand > 0 && chance(state, z.growthChance * demand)) {
+      if (inDemand(demand) && chance(state, z.growthChance * demand)) {
         tile.stage = 'construction';
         tile.progress = z.constructionDays;
         report.started++;

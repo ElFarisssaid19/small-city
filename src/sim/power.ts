@@ -79,7 +79,10 @@ export function updatePower(state: SimState): PowerReport {
       const i = queue[head++];
       const tile = tiles[i];
       const draw = consumption(tile);
-      if (draw <= remaining) {
+      // Empty lots draw nothing yet, but only count as powered while the network
+      // could still run a construction site on them.
+      const needed = draw === 0 && tile.kind === 'zone' ? CONFIG.power.zoneConsumption[0] : draw;
+      if (needed <= remaining) {
         remaining -= draw;
         tile.powered = true;
       }

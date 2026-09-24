@@ -1,9 +1,11 @@
 import type { EventBus } from '../core/events';
 import type { GameEvents } from '../game/events';
 import { createDebtWarning } from './debtWarning';
+import { createFirstHint } from './firstHint';
 import { el } from './dom';
 import { createInfoPanel } from './infoPanel';
 import { Modal } from './modal';
+import { createPlacementLegend } from './placementLegend';
 import { createPreviewLabel } from './previewLabel';
 import { createStatsBar } from './statsBar';
 import { createToasts } from './toasts';
@@ -16,14 +18,10 @@ export function createUI(root: HTMLElement, bus: EventBus<GameEvents>): void {
 
   // The top column stacks alerts under the stats bar so they never overlap it.
   const top = el('div', 'hud-top');
-  top.append(createStatsBar(bus, modal), createDebtWarning(bus));
-  root.append(
-    top,
-    createToasts(bus),
-    createInfoPanel(bus),
-    createToolbar(bus),
-    createPreviewLabel(bus),
-  );
+  top.append(createStatsBar(bus, modal), createDebtWarning(bus), createFirstHint());
+  const bottom = el('div', 'hud-bottom');
+  bottom.append(createPlacementLegend(bus), createToolbar(bus));
+  root.append(top, createToasts(bus), createInfoPanel(bus), bottom, createPreviewLabel(bus));
 
   // Toasts sit just below the top column (stats bar and debt banner), whose height
   // changes as the bar wraps on small screens or the banner comes and goes.

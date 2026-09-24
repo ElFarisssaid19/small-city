@@ -16,15 +16,23 @@ Phase 1 is a playable MVP with placeholder visuals: every building is a coloured
 - **Power:** 2 × 2 plants have a fixed capacity. Power travels through power lines and through
   touching zones and buildings, but not across roads or empty land. A power line built over a road
   makes a crossing that carries power. When demand exceeds capacity, the tiles farthest from the
-  plant lose power first. Unpowered zones show a flashing bolt.
-- **Zones** develop only with power and a road within 3 tiles. They go from empty lot to
-  construction to levels 1–3, and are abandoned after 20 days without power or road access.
+  plant lose power first.
+- **Zones** develop only with power and a road within 3 tiles. They go from empty lot (a bordered
+  tile) to construction (a scaffold) to levels 1–3, and are abandoned after 20 days without power
+  or road access.
+- **Zone feedback:** empty lots show a floating icon for the first thing they're missing: a road,
+  then power, then demand. Buildings at risk of abandonment blink the same icons. While a zone tool
+  is selected, a placement guide shades tiles with a road in reach, power, or both. A tip explains
+  the basics on first launch.
 - **Population and jobs:** homes house residents, and shops and industry offer jobs. Workers take
   the nearest jobs within a commute radius. RCI demand bars show what the city needs next.
 - **Economy:** starting funds, build costs, monthly upkeep and taxes with an adjustable rate.
   Taxes above 9 % dampen demand and lower rates boost it. You can't build what you can't afford,
   and a warning appears while the city is in debt.
-- **Info panel:** click a tile to see its type, level, power, road access, and residents or jobs.
+- **Info panel:** click a tile to see its type and stage, a ✓/✗ checklist of road, power and
+  demand with advice on what to fix, and its residents or jobs.
+- **Dialogs and toasts:** confirmations use an in-game modal (Esc cancels, Enter confirms), and
+  short messages appear as toasts in the corner (info, success, warning, error).
 - **Save and load:** manual save and load, a new-game button, and an autosave every 30 game days,
   all in `localStorage` with a versioned format.
 - **Time:** one game day per second at 1×, plus pause, 2× and 4×.
@@ -107,6 +115,7 @@ The suite covers the rules of the simulation:
   multi-tile plants, and brownout order when demand exceeds capacity
 - road access within the radius, measured as Manhattan distance
 - zone growth, construction, upgrades, decline, abandonment and recovery
+- which requirement an empty lot or building is missing (road, then power, then demand)
 - job matching within the commute radius, nearest first, never over capacity
 - RCI demand and the effect of taxes
 - economy: per-tile and per-plant costs, refusing unaffordable builds, upkeep, taxes, monthly

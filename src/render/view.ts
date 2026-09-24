@@ -2,8 +2,9 @@ import { Color, DirectionalLight, Group, HemisphereLight, Scene, WebGLRenderer }
 import type { Plan } from '../sim/commands';
 import type { Point, SimState } from '../sim/types';
 import { CameraRig } from './camera';
-import { UnpoweredIcons } from './layers/icons';
+import { RequirementIcons } from './layers/icons';
 import { OverlayLayer } from './layers/overlay';
+import { PlacementOverlay } from './layers/placement';
 import { PowerLayer } from './layers/power';
 import { RoadLayer } from './layers/roads';
 import { createTerrain } from './layers/terrain';
@@ -15,7 +16,8 @@ interface Layers {
   roads: RoadLayer;
   power: PowerLayer;
   zones: ZoneLayer;
-  icons: UnpoweredIcons;
+  icons: RequirementIcons;
+  placement: PlacementOverlay;
   overlay: OverlayLayer;
 }
 
@@ -31,6 +33,7 @@ export class CityView {
   private state: Readonly<SimState>;
   private layers: Layers;
   private drawnRevision = -1;
+  private placementVisible = false;
   private lastFrame: number | null = null;
 
   constructor(container: HTMLElement, state: Readonly<SimState>) {
@@ -76,6 +79,14 @@ export class CityView {
     this.setSelection(null);
   }
 
+  /** Shows or hides the zoning guide (road reach and power). */
+  setPlacementOverlay(visible: boolean): void {
+    if (this.placementVisible === visible) return;
+    this.placementVisible = visible;
+    this.layers.placement.visible = visible;
+    this.layers.placement.update(this.state);
+  }
+
   setPlan(plan: Plan | null): void {
     this.layers.overlay.setPlan(plan);
   }
@@ -107,11 +118,12 @@ export class CityView {
     this.rig.update(dt);
 
     if (this.state.revision !== this.drawnRevision) {
-      const { roads, power, zones, icons } = this.layers;
+      const { roads, power, zones, icons, placement } = this.layers;
       roads.update(this.state);
       power.update(this.state);
       zones.update(this.state);
       icons.update(this.state);
+      placement.update(this.state);
       this.drawnRevision = this.state.revision;
     }
     this.layers.icons.frame(now, this.rig.camera);
@@ -127,15 +139,18 @@ export class CityView {
       roads: new RoadLayer(capacity),
       power: new PowerLayer(capacity),
       zones: new ZoneLayer(capacity),
-      icons: new UnpoweredIcons(capacity),
+      icons: new RequirementIcons(capacity),
+      placement: new PlacementOverlay(capacity),
       overlay: new OverlayLayer(capacity),
     };
+    layers.placement.visible = this.placementVisible;
     layers.root.add(
       createTerrain(width, height),
       layers.roads.group,
       layers.power.group,
       layers.zones.group,
-      layers.icons.mesh,
+      layers.icons.group,
+      layers.placement.mesh,
       layers.overlay.group,
     );
     this.scene.add(layers.root);

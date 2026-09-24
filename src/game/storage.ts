@@ -47,3 +47,20 @@ function safeLocalStorage(): Storage | null {
     return null;
   }
 }
+
+/** A remembered yes/no preference such as a dismissed hint; quietly false without storage. */
+export function readFlag(name: string): boolean {
+  try {
+    return safeLocalStorage()?.getItem(`${PREFIX}flag:${name}`) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function writeFlag(name: string): void {
+  try {
+    safeLocalStorage()?.setItem(`${PREFIX}flag:${name}`, '1');
+  } catch {
+    // Storage is unavailable: the flag simply is not remembered.
+  }
+}

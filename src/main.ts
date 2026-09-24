@@ -3,6 +3,7 @@ import { EventBus } from './core/events';
 import type { GameEvents } from './game/events';
 import { Game, restoreCity } from './game/game';
 import { createLocalStore } from './game/storage';
+import { isZoneTool } from './game/tools';
 import { KeyboardInput } from './input/keyboard';
 import { PointerInput } from './input/pointer';
 import { CityView } from './render/view';
@@ -24,6 +25,7 @@ new KeyboardInput(view, bus, () => pointer.cancelDrag());
 bus.on('preview:changed', (preview) => view.setPlan(preview?.plan ?? null));
 bus.on('tile:hovered', (tile) => view.setHover(tile));
 bus.on('tile:selected', (tile) => view.setSelection(tile));
+bus.on('tool:changed', (tool) => view.setPlacementOverlay(isZoneTool(tool)));
 
 createUI(hud, bus);
 bus.emit('tool:changed', 'select');
