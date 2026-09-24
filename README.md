@@ -9,9 +9,10 @@ factories, roads and power poles.
 ## Features
 
 - **32 × 32 map** in an isometric-style view with pan, zoom and 90° rotation.
-- **Tools:** select, road, residential, commercial, industrial, power plant, power line, bulldoze.
-  Drag to build roads and power lines along an L-shaped path, and zones and bulldozing as
-  rectangles. A ghost preview shows green for tiles that will be built and red for blocked ones,
+- **Tools,** grouped so the bar fits a phone: Select; Zones (residential, commercial,
+  industrial); Infrastructure (road, power plant, power line); Services (police, fire station,
+  school, park); Bulldoze. Drag to build roads and power lines along an L-shaped path, and zones
+  and bulldozing as rectangles. A ghost preview shows green for tiles that will be built and red for blocked ones,
   and a label shows the total cost before you let go.
 - **Roads** pick their shape (straight, corner, T, cross, dead end) from their neighbours.
 - **Power:** 2 × 2 plants have a fixed capacity. Power travels through power lines and through
@@ -25,36 +26,65 @@ factories, roads and power poles.
   then power, then demand. Buildings at risk of abandonment blink the same icons. While a zone tool
   is selected, a placement guide shades tiles with a road in reach, power, or both. A tip explains
   the basics on first launch.
+- **Services** need road access and power (parks need neither) and cover every tile within their
+  radius:
+
+  | Service      | Size | Cost   | Upkeep/month | Radius | Power | Effect                                         |
+  | ------------ | ---- | ------ | ------------ | ------ | ----- | ---------------------------------------------- |
+  | Police       | 1×1  | $500   | $60          | 8      | 3     | Cuts crime to 35 %; +10 land value             |
+  | Fire station | 1×1  | $500   | $60          | 8      | 3     | No fires start; puts out fires; +10 land value |
+  | School       | 2×2  | $1,500 | $120         | 10     | 6     | Homes can reach level 3; +15 land value        |
+  | Park         | 1×1  | $150   | $10          | 4      | –     | Soaks up pollution; +20 land value             |
+
+- **Pollution** comes from industry (more at higher levels) and power plants, and fades with
+  distance over 6 tiles. **Crime** grows with the residents and shop workers nearby.
+  **Land value** (0–100) is 40, plus a bonus for each service covering the tile, minus 0.6 ×
+  pollution and 0.4 × crime. These are recomputed once a game month and after every build.
+- **Growth effects:** homes grow faster on valuable, clean land and need a school for level 3;
+  shops need land value 35 for level 2 and 60 for level 3; industry ignores pollution but dislikes
+  crime. Pollution of 60+ (homes, shops) or crime of 55+ makes buildings lose levels and, in the
+  end, be abandoned.
+- **Fires:** buildings outside fire station cover may catch fire. A fire burns for 4 days and
+  leaves an empty lot, unless a fire station comes to cover it. Disasters can be turned off in
+  Settings.
+- **Overlays:** land value, pollution, crime, police, fire, school and power as a heat map with a
+  legend (Overlay button or `O`).
+- **Budget:** this month's estimate and last month's figures, with income by zone type and
+  expenses for roads, power and each service (Budget button or `B`).
 - **Population and jobs:** homes house residents, and shops and industry offer jobs. Workers take
   the nearest jobs within a commute radius. RCI demand bars show what the city needs next.
 - **Economy:** starting funds, build costs, monthly upkeep and taxes with an adjustable rate.
   Taxes above 9 % dampen demand and lower rates boost it. You can't build what you can't afford,
   and a warning appears while the city is in debt.
 - **Info panel:** click a tile to see its type and stage, a ✓/✗ checklist of road, power and
-  demand with advice on what to fix, and its residents or jobs.
+  demand with advice on what to fix, its residents or jobs, its level cap, land value, pollution
+  and crime, and which services cover it.
 - **Dialogs and toasts:** confirmations use an in-game modal (Esc cancels, Enter confirms), and
   short messages appear as toasts in the corner (info, success, warning, error).
 - **Save and load:** manual save and load, a new-game button, and an autosave every 30 game days,
-  all in `localStorage` with a versioned format.
+  all in `localStorage` with a versioned format. Saves from earlier versions are migrated, not
+  rejected.
 - **Time:** one game day per second at 1×, plus pause, 2× and 4×.
 - **Low-poly 3D:** 2–3 model variants per zone and level, chosen from the tile coordinates so they
   stay the same across reloads. Buildings face their nearest road, and abandoned buildings turn
   grey. Models load behind a progress bar; if one fails, that building type falls back to a simple
   box and a toast says so.
-- **Low quality:** a toggle in the top bar that turns off shadows and high-DPI rendering for weak
-  phones. It is remembered between visits.
+- **Settings** (⚙): Disasters on/off, and Low quality, which turns off shadows and high-DPI
+  rendering for weak phones and is remembered between visits.
 
 ## Controls
 
-| Action                 | Mouse                | Touch                 | Keyboard   |
-| ---------------------- | -------------------- | --------------------- | ---------- |
-| Use the current tool   | Left click / drag    | One-finger tap / drag |            |
-| Pan                    | Right or middle drag | Two-finger drag       | Arrow keys |
-| Zoom                   | Wheel                | Pinch                 | `+` / `-`  |
-| Rotate 90°             |                      |                       | `Q` / `E`  |
-| Choose a tool          | Toolbar              | Toolbar               | `1`–`8`    |
-| Pause / resume         | Speed buttons        | Speed buttons         | `Space`    |
-| Cancel drag / deselect |                      |                       | `Esc`      |
+| Action                 | Mouse                | Touch                 | Keyboard                 |
+| ---------------------- | -------------------- | --------------------- | ------------------------ |
+| Use the current tool   | Left click / drag    | One-finger tap / drag |                          |
+| Pan                    | Right or middle drag | Two-finger drag       | Arrow keys               |
+| Zoom                   | Wheel                | Pinch                 | `+` / `-`                |
+| Rotate 90°             |                      |                       | `Q` / `E`                |
+| Choose a tool          | Toolbar              | Toolbar               | `1`–`8`, `P` `F` `S` `K` |
+| Cycle map overlays     | Overlay button       | Overlay button        | `O`                      |
+| Budget                 | Budget button        | Budget button         | `B`                      |
+| Pause / resume         | Speed buttons        | Speed buttons         | `Space`                  |
+| Cancel drag / deselect |                      |                       | `Esc`                    |
 
 **Getting started:** draw a road, zone residential land on one side and industrial on the other
 (within 3 tiles of the road), place a power plant touching a zone, and link zones on opposite sides
@@ -125,6 +155,14 @@ The suite covers the rules of the simulation:
 - road access within the radius, measured as Manhattan distance
 - zone growth, construction, upgrades, decline, abandonment and recovery
 - which requirement an empty lot or building is missing (road, then power, then demand)
+- service coverage radius, 2×2 footprints, road and power requirements, power draw
+- pollution spread, falloff and cap, park clean-up; crime from density and police; the land value
+  formula
+- growth effects: appeal, school and land value level caps, decline and abandonment from pollution
+  and crime
+- fires: deterministic for a seed, none with disasters off or inside fire cover, burning down,
+  being put out
+- service costs and upkeep in the budget breakdown, and v1 → v2 save migration
 - job matching within the commute radius, nearest first, never over capacity
 - RCI demand and the effect of taxes
 - economy: per-tile and per-plant costs, refusing unaffordable builds, upkeep, taxes, monthly
@@ -150,8 +188,8 @@ match.
 - **Phase 2: a city that feels alive.** ~~Low-poly models~~ (done), commutes along the road
   network instead of a radius, visible traffic, and data overlays for power, traffic, land value
   and pollution.
-- **Services and land value.** Police, fire, schools, clinics and parks raise land value, which
-  gates higher building levels. Industry pollutes.
+- **Services and land value.** ~~Police, fire, schools, parks, land value, pollution, crime~~
+  (done). Next: clinics, and service budgets that trade coverage for cost.
 - **Terrain.** Water, elevation, bridges and trees to clear.
 - **Deeper economy.** Per-department budgets, loans, yearly reports with charts, separate tax rates
   per zone.
