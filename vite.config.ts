@@ -5,8 +5,8 @@ export default defineConfig({
   base: '/small-city/',
   build: {
     target: 'es2022',
-    // three.js alone is most of the bundle (~560 kB minified, ~145 kB gzipped).
-    chunkSizeWarningLimit: 700,
+    // three.js and its GLTF loader are most of the bundle (~600 of ~710 kB minified).
+    chunkSizeWarningLimit: 800,
   },
   test: {
     include: ['tests/**/*.test.ts'],
