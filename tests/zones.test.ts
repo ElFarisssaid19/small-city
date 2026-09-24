@@ -43,7 +43,8 @@ describe('zone growth', () => {
   });
 
   it('upgrades to the top level under strong demand and not beyond', () => {
-    const { state, tile } = lot('commercial', { stage: 'developed', level: 1 });
+    // Shops need land value for levels 2 and 3.
+    const { state, tile } = lot('commercial', { stage: 'developed', level: 1, landValue: 90 });
     stepUntil(state, () => tile.level === CONFIG.zones.maxLevel);
     for (let d = 0; d < 200; d++) updateZones(state);
     expect(tile.level).toBe(CONFIG.zones.maxLevel);

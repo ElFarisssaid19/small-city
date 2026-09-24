@@ -77,6 +77,65 @@ export function missingRequirement(
   return null;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * Multiplier on a zone's growth and upgrade chances from its surroundings:
+ * homes want high land value and clean air, industry shuns crime, shops only
+ * follow demand (land value caps their level instead).
+ */
+export function appeal(tile: Readonly<Tile>): number {
+  const e = CONFIG.zones.effects;
+  switch (tile.zone) {
+    case 'residential': {
+      const base = clamp(
+        e.appealBase + tile.landValue / e.appealLandValue,
+        e.appealMin,
+        e.appealMax,
+      );
+      return base * (1 - tile.pollution / 100);
+    }
+    case 'industrial':
+      return Math.max(0, 1 - tile.crime / e.industrialCrimeTolerance);
+    default:
+      return 1;
+  }
+}
+
+/** The highest level a zone tile can reach where it stands, and what would raise it. */
+export interface LevelLimit {
+  cap: number;
+  /** What the next level needs: a school nearby, more land value, or nothing. */
+  needs: 'school' | 'landValue' | null;
+  /** For 'landValue': the land value the next level needs. */
+  landValue: number;
+}
+
+/** Homes above level 2 need a school nearby; shops need enough land value for each level. */
+export function levelLimit(tile: Readonly<Tile>): LevelLimit {
+  const e = CONFIG.zones.effects;
+  const max = CONFIG.zones.maxLevel;
+  if (tile.zone === 'residential' && !tile.coverage.school) {
+    return { cap: e.schoolFreeMaxLevel, needs: 'school', landValue: 0 };
+  }
+  if (tile.zone === 'commercial') {
+    let cap = 1;
+    while (cap < max && tile.landValue >= e.commercialLandValue[cap + 1]) cap++;
+    if (cap === max) return { cap, needs: null, landValue: 0 };
+    return { cap, needs: 'landValue', landValue: e.commercialLandValue[cap + 1] };
+  }
+  return { cap: max, needs: null, landValue: 0 };
+}
+
+/** Too much pollution (homes and shops only) or crime drives a building into decline. */
+export function distressed(tile: Readonly<Tile>): boolean {
+  const e = CONFIG.zones.effects;
+  if (tile.crime >= e.distressCrime) return true;
+  return tile.zone !== 'industrial' && tile.pollution >= e.distressPollution;
+}
+
 /**
  * Advances every zone lot by one day: fires, growth, construction, upgrades,
  * decline and abandonment. A burning building is evacuated and does not change
@@ -149,7 +208,7 @@ function stepZone(state: SimState, tile: Tile, demand: number, report: ZoneRepor
   tile.neglect = 0;
   switch (tile.stage) {
     case 'empty':
-      if (inDemand(demand) && chance(state, z.growthChance * demand)) {
+      if (inDemand(demand) && chance(state, z.growthChance * demand * appeal(tile))) {
         tile.stage = 'construction';
         tile.progress = z.constructionDays;
         report.started++;
@@ -164,17 +223,29 @@ function stepZone(state: SimState, tile: Tile, demand: number, report: ZoneRepor
         report.completed++;
       }
       break;
-    case 'developed':
-      if (
-        tile.level < z.maxLevel &&
+    case 'developed': {
+      const { cap } = levelLimit(tile);
+      if (distressed(tile)) {
+        // Pollution or crime: lose levels, then eventually move out.
+        if (tile.level > 1) {
+          if (chance(state, z.declineChance)) tile.level--;
+        } else if (chance(state, z.effects.distressAbandonChance)) {
+          tile.stage = 'abandoned';
+          report.abandoned++;
+        }
+      } else if (tile.level > cap) {
+        if (chance(state, z.declineChance)) tile.level--;
+      } else if (
+        tile.level < cap &&
         demand >= z.upgradeMinDemand &&
-        chance(state, z.upgradeChance * demand)
+        chance(state, z.upgradeChance * demand * appeal(tile))
       ) {
         tile.level++;
       } else if (tile.level > 1 && demand <= z.declineDemand && chance(state, z.declineChance)) {
         tile.level--;
       }
       break;
+    }
     case 'abandoned':
       if (chance(state, z.recoverChance)) {
         tile.stage = 'empty';

@@ -49,6 +49,28 @@ export const CONFIG = {
     abandonDays: 20,
     /** Daily chance that an abandoned building with service again is cleared to an empty lot. */
     recoverChance: 0.1,
+    /**
+     * How land value, pollution, crime and schools shape growth. Residential
+     * appeal (a multiplier on growth and upgrade chances) is
+     * clamp(appealBase + landValue / appealLandValue, appealMin, appealMax) × (1 − pollution / 100).
+     */
+    effects: {
+      appealBase: 0.4,
+      appealLandValue: 60,
+      appealMin: 0.1,
+      appealMax: 1.5,
+      /** Homes above this level need school coverage. */
+      schoolFreeMaxLevel: 2,
+      /** Land value a commercial building needs for each level (index = level). */
+      commercialLandValue: [0, 0, 35, 60],
+      /** Industry's growth chances shrink by crime / industrialCrimeTolerance. */
+      industrialCrimeTolerance: 120,
+      /** Pollution (homes, shops) or crime (all zones) at or above which buildings decline. */
+      distressPollution: 60,
+      distressCrime: 55,
+      /** Daily chance that a distressed level-1 building is abandoned. */
+      distressAbandonChance: 0.02,
+    },
     /** Residents (R) or jobs (C, I) per building, indexed by level. */
     capacity: {
       residential: [0, 6, 16, 36],
@@ -124,7 +146,7 @@ export const CONFIG = {
       policeFactor: 0.35,
     },
     landValue: {
-      base: 35,
+      base: 40,
       /** Added for each service covering the tile. */
       bonus: { police: 10, fire: 10, school: 15, park: 20 },
       /** Land value lost per point of pollution and of crime. */
