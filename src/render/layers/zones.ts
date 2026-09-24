@@ -1,9 +1,19 @@
 import { BoxGeometry, Color, Group, MeshLambertMaterial, PlaneGeometry } from 'three';
 import type { BufferGeometry, InstancedMesh } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { SimState, Tile } from '../../sim/types';
-import { commitInstances, createInstanced, paint, tileHash, transform } from '../instancing';
-import { BUILDING, PALETTE } from '../palette';
+import type { SimState, Tile, ZoneType } from '../../sim/types';
+import {
+  BatchSet,
+  commitInstances,
+  createInstanced,
+  paint,
+  tileHash,
+  transform,
+} from '../instancing';
+import { BUILDING_MODELS } from '../models/catalog';
+import type { LoadedModel, ModelLibrary } from '../models/library';
+import { PALETTE, BUILDING } from '../palette';
+import { buildingFacing, facingYaw, pickVariant } from '../placementRules';
 
 interface BuildingShape {
   height: number;
@@ -12,11 +22,22 @@ interface BuildingShape {
 }
 
 const LOT_SIZE = 0.94;
+/** Widest a building model may be, in tiles; larger kit pieces are scaled down to fit. */
+const BUILDING_FOOTPRINT = 0.9;
+const ZONE_SALT: Record<ZoneType, number> = { residential: 1, commercial: 2, industrial: 3 };
 const BORDER_WIDTH = 0.05;
 /** How much of the zone colour an empty lot's fill keeps; the border carries the rest. */
 const EMPTY_LOT_TINT = 0.35;
 
-/** Size and colour of the box on a developed or abandoned lot, or null if there is none. */
+/**
+ * Uniform scale for a kit model on one tile: kit units are tiles, and anything
+ * wider than the footprint shrinks to fit (never enlarged).
+ */
+export function fitScale(model: LoadedModel, footprint = BUILDING_FOOTPRINT): number {
+  return Math.min(1, footprint / Math.max(model.size.x, model.size.z));
+}
+
+/** Size and colour of the fallback box on a developed or abandoned lot, or null if there is none. */
 export function buildingShape(tile: Readonly<Tile>, index: number): BuildingShape | null {
   if (tile.kind !== 'zone' || tile.zone === null) return null;
   if ((tile.stage !== 'developed' && tile.stage !== 'abandoned') || tile.level < 1) return null;
@@ -27,12 +48,6 @@ export function buildingShape(tile: Readonly<Tile>, index: number): BuildingShap
     footprint: BUILDING.footprint[tile.zone][level],
     color: tile.stage === 'abandoned' ? PALETTE.abandoned : PALETTE.building[tile.zone][level],
   };
-}
-
-/** Height of whatever stands on a zone tile, for placing icons above it. */
-export function structureHeight(tile: Readonly<Tile>, index: number): number {
-  if (tile.kind === 'zone' && tile.stage === 'construction') return BUILDING.scaffoldHeight;
-  return buildingShape(tile, index)?.height ?? 0;
 }
 
 /** A thin square frame lying on the ground, one tile wide. */
@@ -82,11 +97,15 @@ function scaffoldGeometry(): BufferGeometry {
 
 /**
  * Zone tiles by stage: an empty lot is a faintly tinted tile with a border in the
- * zone colour, a construction site is a low scaffold, and a developed building is
- * a box sized by level. Colours are set per instance.
+ * zone colour, a construction site is a low scaffold, and a building is a kit
+ * model for its zone and level (greyed when abandoned). The variant and facing
+ * come from the tile coordinates; if no model loaded, a coloured box stands in.
  */
 export class ZoneLayer {
   readonly group = new Group();
+  private readonly models: BatchSet;
+  /** Height of what stands on each tile, for placing icons above it. */
+  private readonly heights: Float32Array;
   private readonly lots: InstancedMesh;
   private readonly borders: InstancedMesh;
   private readonly scaffolds: InstancedMesh;
@@ -95,7 +114,12 @@ export class ZoneLayer {
   private readonly accent = new Color();
   private readonly ground = new Color(PALETTE.ground);
 
-  constructor(capacity: number) {
+  constructor(
+    capacity: number,
+    private readonly library: ModelLibrary,
+  ) {
+    this.heights = new Float32Array(capacity);
+    this.models = new BatchSet(this.group, { castShadow: true, receiveShadow: true });
     this.lots = createInstanced(
       new PlaneGeometry(LOT_SIZE, LOT_SIZE).rotateX(-Math.PI / 2),
       new MeshLambertMaterial(),
@@ -124,15 +148,24 @@ export class ZoneLayer {
     this.group.add(this.lots, this.borders, this.scaffolds, this.buildings);
   }
 
+  /** Height of the structure on tile `index` as last drawn. */
+  heightAt(index: number): number {
+    return this.heights[index] ?? 0;
+  }
+
   update(state: Readonly<SimState>): void {
     let lots = 0;
     let borders = 0;
     let scaffolds = 0;
     let buildings = 0;
+    this.heights.fill(0);
+    this.models.begin();
     state.tiles.forEach((tile, i) => {
       if (tile.kind !== 'zone' || tile.zone === null) return;
-      const x = (i % state.width) + 0.5;
-      const z = Math.floor(i / state.width) + 0.5;
+      const tx = i % state.width;
+      const ty = Math.floor(i / state.width);
+      const x = tx + 0.5;
+      const z = ty + 0.5;
 
       this.color.setHex(PALETTE.lot[tile.zone]);
       if (tile.stage === 'empty') {
@@ -145,17 +178,52 @@ export class ZoneLayer {
 
       if (tile.stage === 'construction') {
         this.scaffolds.setMatrixAt(scaffolds++, transform(x, 0, z));
+        this.heights[i] = BUILDING.scaffoldHeight;
         return;
       }
+      if (tile.stage !== 'developed' && tile.stage !== 'abandoned') return;
+
+      const model = this.modelFor(tile.zone, tile.level, tx, ty);
+      if (model) {
+        const scale = fitScale(model);
+        const matrix = transform(
+          x,
+          0,
+          z,
+          facingYaw(buildingFacing(state, tx, ty)),
+          scale,
+          scale,
+          scale,
+        );
+        const greyed = tile.stage === 'abandoned';
+        model.parts.forEach((part, p) => {
+          const key = `${model.id}#${p}${greyed ? ':greyed' : ''}`;
+          this.models.get(key, part.geometry, greyed ? part.greyed : part.material).add(matrix);
+        });
+        this.heights[i] = model.size.y * scale;
+        return;
+      }
+
       const shape = buildingShape(tile, i);
       if (!shape) return;
       const { footprint, height } = shape;
       this.buildings.setMatrixAt(buildings, transform(x, 0, z, 0, footprint, height, footprint));
       this.buildings.setColorAt(buildings++, this.color.setHex(shape.color));
+      this.heights[i] = height;
     });
+    this.models.end();
     commitInstances(this.lots, lots);
     commitInstances(this.borders, borders);
     commitInstances(this.scaffolds, scaffolds);
     commitInstances(this.buildings, buildings);
+  }
+
+  /** The loaded variant a tile shows for its zone and level, or null to use the fallback box. */
+  private modelFor(zone: ZoneType, level: number, x: number, y: number): LoadedModel | null {
+    const variants = (BUILDING_MODELS[zone][level - 1] ?? [])
+      .map((id) => this.library.get(id))
+      .filter((model): model is LoadedModel => model !== undefined);
+    if (variants.length === 0) return null;
+    return variants[pickVariant(x, y, ZONE_SALT[zone] * 10 + level, variants.length)];
   }
 }

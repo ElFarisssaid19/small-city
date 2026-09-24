@@ -5,7 +5,9 @@ import { DIRECTIONS } from '../../sim/grid';
 import { ROAD_BASE_MASK, roadPiece } from '../../sim/roads';
 import type { RoadShape } from '../../sim/roads';
 import type { SimState } from '../../sim/types';
-import { commitInstances, createInstanced, paint, transform } from '../instancing';
+import { BatchSet, commitInstances, createInstanced, paint, transform } from '../instancing';
+import { ROAD_MODELS } from '../models/catalog';
+import type { ModelLibrary } from '../models/library';
 import { PALETTE, ROAD } from '../palette';
 
 const SHAPES = Object.keys(ROAD_BASE_MASK) as RoadShape[];
@@ -31,35 +33,55 @@ function buildPieceGeometry(mask: number): BufferGeometry {
   return merged;
 }
 
-/** One instanced mesh per road shape; each road tile picks its shape and rotation from the sim. */
+/**
+ * Road tiles drawn with the roads kit: each auto-shape from the sim maps to a
+ * kit piece, turned from its authored orientation to the sim's rotation. A shape
+ * whose model failed to load falls back to a simple procedural piece.
+ */
 export class RoadLayer {
   readonly group = new Group();
-  private readonly meshes = new Map<RoadShape, InstancedMesh>();
+  private readonly models: BatchSet;
+  private readonly fallbacks = new Map<RoadShape, InstancedMesh>();
 
-  constructor(capacity: number) {
+  constructor(
+    capacity: number,
+    private readonly library: ModelLibrary,
+  ) {
+    this.models = new BatchSet(this.group, { receiveShadow: true });
     const material = new MeshLambertMaterial({ vertexColors: true });
     for (const shape of SHAPES) {
+      if (library.get(ROAD_MODELS[shape].model)) continue;
       const mesh = createInstanced(buildPieceGeometry(ROAD_BASE_MASK[shape]), material, capacity);
       mesh.receiveShadow = true;
-      this.meshes.set(shape, mesh);
+      this.fallbacks.set(shape, mesh);
       this.group.add(mesh);
     }
   }
 
   update(state: Readonly<SimState>): void {
     const counts = new Map<RoadShape, number>(SHAPES.map((s) => [s, 0]));
+    this.models.begin();
     state.tiles.forEach((tile, i) => {
       if (tile.kind !== 'road') return;
       const x = i % state.width;
       const y = (i - x) / state.width;
       const { shape, rotation } = roadPiece(state, x, y);
-      const n = counts.get(shape) ?? 0;
+      const spec = ROAD_MODELS[shape];
+      const model = this.library.get(spec.model);
       // Sim rotations are clockwise seen from above, which is a negative turn about +y.
-      this.meshes
-        .get(shape)
-        ?.setMatrixAt(n, transform(x + 0.5, 0, y + 0.5, (-rotation * Math.PI) / 2));
+      const turns = model ? rotation - spec.rotation : rotation;
+      const matrix = transform(x + 0.5, 0, y + 0.5, (-turns * Math.PI) / 2);
+      if (model) {
+        model.parts.forEach((part, p) => {
+          this.models.get(`${model.id}#${p}`, part.geometry, part.material).add(matrix);
+        });
+        return;
+      }
+      const n = counts.get(shape) ?? 0;
+      this.fallbacks.get(shape)?.setMatrixAt(n, matrix);
       counts.set(shape, n + 1);
     });
-    for (const [shape, mesh] of this.meshes) commitInstances(mesh, counts.get(shape) ?? 0);
+    this.models.end();
+    for (const [shape, mesh] of this.fallbacks) commitInstances(mesh, counts.get(shape) ?? 0);
   }
 }

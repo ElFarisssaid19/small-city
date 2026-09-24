@@ -2,6 +2,7 @@ import { Color, DirectionalLight, Group, HemisphereLight, Scene, WebGLRenderer }
 import type { Plan } from '../sim/commands';
 import type { Point, SimState } from '../sim/types';
 import { CameraRig } from './camera';
+import type { ModelLibrary } from './models/library';
 import { RequirementIcons } from './layers/icons';
 import { OverlayLayer } from './layers/overlay';
 import { PlacementOverlay } from './layers/placement';
@@ -36,16 +37,18 @@ export class CityView {
   private placementVisible = false;
   private lastFrame: number | null = null;
 
-  constructor(container: HTMLElement, state: Readonly<SimState>) {
+  constructor(
+    private readonly container: HTMLElement,
+    state: Readonly<SimState>,
+    private readonly library: ModelLibrary,
+    options: { lowQuality?: boolean } = {},
+  ) {
     this.state = state;
     this.renderer = new WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
     container.appendChild(this.renderer.domElement);
 
     this.scene.background = new Color(PALETTE.sky);
     this.scene.add(new HemisphereLight(0xeaf4ff, 0x4d5a3c, 1.6));
-    this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.02;
@@ -54,13 +57,25 @@ export class CityView {
     this.rig = new CameraRig(this.renderer.domElement);
     this.layers = this.buildLayers(state);
 
-    const resize = () => {
-      const { clientWidth, clientHeight } = container;
-      this.renderer.setSize(clientWidth, clientHeight);
-      this.rig.resize(clientWidth, clientHeight);
-    };
-    new ResizeObserver(resize).observe(container);
-    resize();
+    this.setLowQuality(options.lowQuality ?? false);
+    new ResizeObserver(() => this.resize()).observe(container);
+  }
+
+  /**
+   * Low quality for weak devices: no shadows (one fewer render pass) and no
+   * high-DPI rendering. Materials recompile on their own when shadows change.
+   */
+  setLowQuality(low: boolean): void {
+    this.renderer.shadowMap.enabled = !low;
+    this.sun.castShadow = !low;
+    this.renderer.setPixelRatio(low ? 1 : Math.min(window.devicePixelRatio, 2));
+    this.resize();
+  }
+
+  private resize(): void {
+    const { clientWidth, clientHeight } = this.container;
+    this.renderer.setSize(clientWidth, clientHeight);
+    this.rig.resize(clientWidth, clientHeight);
   }
 
   get canvas(): HTMLCanvasElement {
@@ -122,7 +137,7 @@ export class CityView {
       roads.update(this.state);
       power.update(this.state);
       zones.update(this.state);
-      icons.update(this.state);
+      icons.update(this.state, (i) => zones.heightAt(i));
       placement.update(this.state);
       this.drawnRevision = this.state.revision;
     }
@@ -136,9 +151,9 @@ export class CityView {
     this.rig.setBounds(width, height);
     const layers: Layers = {
       root: new Group(),
-      roads: new RoadLayer(capacity),
-      power: new PowerLayer(capacity),
-      zones: new ZoneLayer(capacity),
+      roads: new RoadLayer(capacity, this.library),
+      power: new PowerLayer(capacity, this.library),
+      zones: new ZoneLayer(capacity, this.library),
       icons: new RequirementIcons(capacity),
       placement: new PlacementOverlay(capacity),
       overlay: new OverlayLayer(capacity),

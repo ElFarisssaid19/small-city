@@ -13,7 +13,6 @@ import type { Requirement } from '../../sim/zones';
 import type { SimState } from '../../sim/types';
 import { commitInstances, createInstanced, tileHash } from '../instancing';
 import { PALETTE } from '../palette';
-import { structureHeight } from './zones';
 
 const FLASH_MS = 450;
 const BOB_HEIGHT = 0.07;
@@ -120,7 +119,8 @@ export class RequirementIcons {
     }
   }
 
-  update(state: Readonly<SimState>): void {
+  /** `heightAt` gives the height of the structure on a tile, so badges float just above it. */
+  update(state: Readonly<SimState>, heightAt: (index: number) => number): void {
     this.icons = new Map(REQUIREMENTS.map((r) => [r, []]));
     state.tiles.forEach((tile, i) => {
       const requirement = missingRequirement(state, tile);
@@ -128,7 +128,7 @@ export class RequirementIcons {
       const x = (i % state.width) + 0.5;
       const z = Math.floor(i / state.width) + 0.5;
       this.icons.get(requirement)?.push({
-        position: new Vector3(x, structureHeight(tile, i) + 0.42, z),
+        position: new Vector3(x, heightAt(i) + 0.42, z),
         blinking: tile.stage !== 'empty',
         phase: tileHash(i) * Math.PI * 2,
       });

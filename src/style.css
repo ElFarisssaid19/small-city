@@ -111,7 +111,7 @@ button {
   align-items: center;
   gap: 6px 18px;
   padding: 8px 14px;
-  width: min(100%, 1100px);
+  width: min(100%, 1240px);
   box-sizing: border-box;
 }
 
@@ -906,4 +906,60 @@ button {
 
 .debt-warning[hidden] {
   display: none;
+}
+
+/* ---------- Loading screen ---------- */
+
+.loading {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: #1b2330;
+  transition: opacity 0.3s;
+}
+
+.loading.done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-card {
+  width: min(360px, 100%);
+  text-align: center;
+}
+
+.loading-title {
+  margin: 0 0 16px;
+  font-size: 24px;
+  letter-spacing: 0.02em;
+}
+
+.loading-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.loading-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.2s ease-out;
+}
+
+.loading-label {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-button.quality.active {
+  background: rgba(255, 211, 90, 0.18);
+  border-color: var(--accent);
 }

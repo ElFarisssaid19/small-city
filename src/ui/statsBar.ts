@@ -109,11 +109,25 @@ export function createStatsBar(bus: EventBus<GameEvents>, modal: Modal): HTMLEle
     if (confirmed) bus.emit('game:new');
   };
 
+  let lowQuality = false;
+  const quality = button(
+    'menu-button quality',
+    'Low quality',
+    () => bus.emit('settings:lowQuality', !lowQuality),
+    'Low quality: turn off shadows for smoother play on weak devices',
+  );
+  bus.on('settings:lowQuality', (low) => {
+    lowQuality = low;
+    quality.setAttribute('aria-pressed', String(low));
+    quality.classList.toggle('active', low);
+  });
+
   const menu = el('div', 'menu');
   menu.append(
     button('menu-button', 'Save', () => bus.emit('game:save'), 'Save the city'),
     button('menu-button', 'Load', () => void loadCity(), 'Load the saved city'),
     button('menu-button', 'New', () => void newCity(), 'Start a new city'),
+    quality,
   );
 
   bar.append(title, stats, tax, demand.root, speeds, menu);

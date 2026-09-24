@@ -3,7 +3,8 @@
 A small browser city-builder made with three.js and TypeScript. Lay out roads, zone land for
 homes, shops and industry, run power to it, and balance the budget while the town grows.
 
-Phase 1 is a playable MVP with placeholder visuals: every building is a coloured box.
+The city is drawn with low-poly models from Kenney's City Kits: suburban houses, shops and towers,
+factories, roads and power poles.
 
 ## Features
 
@@ -36,6 +37,12 @@ Phase 1 is a playable MVP with placeholder visuals: every building is a coloured
 - **Save and load:** manual save and load, a new-game button, and an autosave every 30 game days,
   all in `localStorage` with a versioned format.
 - **Time:** one game day per second at 1×, plus pause, 2× and 4×.
+- **Low-poly 3D:** 2–3 model variants per zone and level, chosen from the tile coordinates so they
+  stay the same across reloads. Buildings face their nearest road, and abandoned buildings turn
+  grey. Models load behind a progress bar; if one fails, that building type falls back to a simple
+  box and a toast says so.
+- **Low quality:** a toggle in the top bar that turns off shadows and high-DPI rendering for weak
+  phones. It is remembered between visits.
 
 ## Controls
 
@@ -77,7 +84,7 @@ npm run dev        # http://localhost:5173/small-city/
 src/
   core/     typed event bus, fixed-step game loop, number formatting
   sim/      pure, deterministic simulation (no three.js, no DOM, seeded RNG)
-  render/   three.js scene that reads sim state; one InstancedMesh per tile type
+  render/   three.js scene that reads sim state; one InstancedMesh per model part
   input/    pointer (mouse + touch) and keyboard → tile picking → commands
   ui/       plain HTML/CSS overlays: stats bar, toolbar, info panel, notices
   game/     wiring: Game (owns sim + loop), event map, tools, save storage
@@ -100,7 +107,9 @@ tests/      Vitest unit tests for the simulation and core
   modules.
 - **Tuning:** every gameplay number (costs, capacities, radii, growth rates, demand, taxes) lives in
   [`src/sim/config.ts`](src/sim/config.ts). Colours and proportions live in
-  [`src/render/palette.ts`](src/render/palette.ts).
+  [`src/render/palette.ts`](src/render/palette.ts), and which Kenney model draws what (variants,
+  road pieces and their rotations, the power plant parts) in
+  [`src/render/models/catalog.ts`](src/render/models/catalog.ts).
 
 ## Tests
 
@@ -138,9 +147,9 @@ match.
 
 ## Roadmap
 
-- **Phase 2: a city that feels alive.** Low-poly models with a few variants per zone and level,
-  commutes along the road network instead of a radius, visible traffic, and data overlays for power,
-  traffic, land value and pollution.
+- **Phase 2: a city that feels alive.** ~~Low-poly models~~ (done), commutes along the road
+  network instead of a radius, visible traffic, and data overlays for power, traffic, land value
+  and pollution.
 - **Services and land value.** Police, fire, schools, clinics and parks raise land value, which
   gates higher building levels. Industry pollutes.
 - **Terrain.** Water, elevation, bridges and trees to clear.
@@ -152,6 +161,11 @@ match.
   cursor for accessibility.
 - **Testing.** End-to-end tests of the UI with Playwright.
 
+## Credits
+
+3D models by Kenney (kenney.nl), CC0
+
 ## License
 
-[MIT](LICENSE) © 2026 Said El Fariss
+Code: [MIT](LICENSE) © 2026 Said El Fariss. The models in `public/models/` are CC0; see
+[`public/models/LICENSE-kenney.txt`](public/models/LICENSE-kenney.txt).

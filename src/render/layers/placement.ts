@@ -17,6 +17,7 @@ function isLive(tile: Readonly<Tile>): boolean {
  */
 export class PlacementOverlay {
   readonly mesh: InstancedMesh;
+  private enabled = false;
   private readonly color = new Color();
 
   constructor(capacity: number) {
@@ -30,15 +31,16 @@ export class PlacementOverlay {
   }
 
   get visible(): boolean {
-    return this.mesh.visible;
+    return this.enabled;
   }
 
   set visible(value: boolean) {
-    this.mesh.visible = value;
+    this.enabled = value;
+    if (!value) this.mesh.visible = false;
   }
 
   update(state: Readonly<SimState>): void {
-    if (!this.mesh.visible) return;
+    if (!this.enabled) return;
     const { tiles, width } = state;
     let count = 0;
     tiles.forEach((tile, i) => {

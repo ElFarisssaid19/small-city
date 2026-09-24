@@ -37,6 +37,9 @@ export interface GameEvents {
   'tile:hovered': Point | null;
   'tile:selected': Point | null;
 
+  /** Low quality rendering (no shadows) for weak devices. */
+  'settings:lowQuality': boolean;
+
   'game:new': void;
   'game:save': void;
   'game:load': void;

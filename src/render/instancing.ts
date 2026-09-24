@@ -1,5 +1,5 @@
 import { BufferAttribute, Color, InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three';
-import type { BufferGeometry, Material } from 'three';
+import type { BufferGeometry, Group, Material } from 'three';
 
 /** An instanced mesh sized for the worst case, starting empty. */
 export function createInstanced(
@@ -14,9 +14,10 @@ export function createInstanced(
   return mesh;
 }
 
-/** Marks instance buffers dirty after a rebuild with `count` instances. */
+/** Marks instance buffers dirty after a rebuild with `count` instances; empty meshes are skipped. */
 export function commitInstances(mesh: InstancedMesh, count: number): void {
   mesh.count = count;
+  mesh.visible = count > 0;
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 }
@@ -59,4 +60,84 @@ export function tileHash(index: number): number {
   h ^= h >>> 15;
   h = Math.imul(h, 0x165667b1);
   return ((h ^ (h >>> 13)) >>> 0) / 4294967296;
+}
+
+export interface BatchOptions {
+  castShadow?: boolean;
+  receiveShadow?: boolean;
+}
+
+/**
+ * An instanced mesh that is refilled from scratch on every rebuild and grows
+ * (by recreating the mesh at twice the size) when it runs out of room, so each
+ * model only pays for the instances it actually uses.
+ */
+export class InstanceBatch {
+  private mesh: InstancedMesh;
+  private count = 0;
+
+  constructor(
+    private readonly group: Group,
+    private readonly geometry: BufferGeometry,
+    private readonly material: Material,
+    private readonly options: BatchOptions = {},
+  ) {
+    this.mesh = this.create(16);
+  }
+
+  begin(): void {
+    this.count = 0;
+  }
+
+  add(matrix: Matrix4): void {
+    if (this.count === this.mesh.instanceMatrix.count) this.grow();
+    this.mesh.setMatrixAt(this.count++, matrix);
+  }
+
+  end(): void {
+    commitInstances(this.mesh, this.count);
+  }
+
+  private create(capacity: number): InstancedMesh {
+    const mesh = createInstanced(this.geometry, this.material, capacity);
+    mesh.castShadow = this.options.castShadow ?? false;
+    mesh.receiveShadow = this.options.receiveShadow ?? false;
+    this.group.add(mesh);
+    return mesh;
+  }
+
+  private grow(): void {
+    const old = this.mesh;
+    this.mesh = this.create(old.instanceMatrix.count * 2);
+    this.mesh.instanceMatrix.array.set(old.instanceMatrix.array);
+    this.group.remove(old);
+    old.dispose();
+  }
+}
+
+/** Instance batches created on first use, one per key (for example model part and style). */
+export class BatchSet {
+  private readonly batches = new Map<string, InstanceBatch>();
+
+  constructor(
+    private readonly group: Group,
+    private readonly options: BatchOptions = {},
+  ) {}
+
+  begin(): void {
+    for (const batch of this.batches.values()) batch.begin();
+  }
+
+  get(key: string, geometry: BufferGeometry, material: Material): InstanceBatch {
+    let batch = this.batches.get(key);
+    if (!batch) {
+      batch = new InstanceBatch(this.group, geometry, material, this.options);
+      this.batches.set(key, batch);
+    }
+    return batch;
+  }
+
+  end(): void {
+    for (const batch of this.batches.values()) batch.end();
+  }
 }

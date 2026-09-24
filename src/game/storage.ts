@@ -57,9 +57,11 @@ export function readFlag(name: string): boolean {
   }
 }
 
-export function writeFlag(name: string): void {
+export function writeFlag(name: string, value = true): void {
   try {
-    safeLocalStorage()?.setItem(`${PREFIX}flag:${name}`, '1');
+    const storage = safeLocalStorage();
+    if (value) storage?.setItem(`${PREFIX}flag:${name}`, '1');
+    else storage?.removeItem(`${PREFIX}flag:${name}`);
   } catch {
     // Storage is unavailable: the flag simply is not remembered.
   }
