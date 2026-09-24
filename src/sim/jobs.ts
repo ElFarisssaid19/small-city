@@ -11,7 +11,7 @@ export interface JobReport {
 
 /** Jobs a tile offers: only developed commercial and industrial buildings employ people. */
 export function jobCapacity(tile: Tile): number {
-  if (tile.kind !== 'zone' || tile.stage !== 'developed') return 0;
+  if (tile.kind !== 'zone' || tile.stage !== 'developed' || tile.fire > 0) return 0;
   if (tile.zone !== 'commercial' && tile.zone !== 'industrial') return 0;
   return capacityOf(tile.zone, tile.level);
 }

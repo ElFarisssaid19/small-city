@@ -1,6 +1,6 @@
 import { CONFIG } from './config';
 import { seedRng } from './rng';
-import type { CityStats, Coverage, SimState, Tile } from './types';
+import type { CityStats, Coverage, MonthlyBudget, SimState, Tile } from './types';
 
 export function noCoverage(): Coverage {
   return { police: false, fire: false, school: false, park: false };
@@ -11,6 +11,7 @@ export function emptyTile(): Tile {
     kind: 'empty',
     hasLine: false,
     zone: null,
+    service: null,
     stage: 'empty',
     level: 0,
     progress: 0,
@@ -19,6 +20,7 @@ export function emptyTile(): Tile {
     employed: 0,
     workers: 0,
     anchor: -1,
+    fire: 0,
     powered: false,
     roadAccess: false,
     coverage: noCoverage(),
@@ -45,6 +47,15 @@ export function emptyStats(): CityStats {
   };
 }
 
+export function emptyBudget(): MonthlyBudget {
+  return {
+    taxes: 0,
+    upkeep: 0,
+    income: { residential: 0, commercial: 0, industrial: 0 },
+    expenses: { roads: 0, power: 0, police: 0, fire: 0, school: 0, park: 0 },
+  };
+}
+
 export interface NewGameOptions {
   seed: number;
   width?: number;
@@ -64,7 +75,8 @@ export function createState({
     day: 0,
     funds: CONFIG.economy.startingFunds,
     taxRate: CONFIG.economy.taxRate.initial,
-    lastBudget: { taxes: 0, upkeep: 0 },
+    disasters: true,
+    lastBudget: emptyBudget(),
     tiles: Array.from({ length: width * height }, emptyTile),
     environmentReady: false,
     demand: { residential: 0, commercial: 0, industrial: 0 },

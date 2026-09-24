@@ -2,6 +2,7 @@ import { CONFIG } from './config';
 import { inBounds, toIndex } from './grid';
 import { jobCapacity, workforceOf } from './jobs';
 import { roadPiece } from './roads';
+import { serviceActive } from './services';
 import type { RoadShape } from './roads';
 import type { Point, SimState, Tile } from './types';
 
@@ -15,6 +16,8 @@ export interface TileInfo extends Point {
   workforce: number;
   /** Power units supplied (power plants). */
   plantCapacity: number;
+  /** Service buildings: whether it works (road and power), and how far it reaches. */
+  service: { active: boolean; radius: number } | null;
 }
 
 export function inspectTile(state: Readonly<SimState>, p: Point): TileInfo | null {
@@ -28,5 +31,12 @@ export function inspectTile(state: Readonly<SimState>, p: Point): TileInfo | nul
     jobs: jobCapacity(tile),
     workforce: workforceOf(tile),
     plantCapacity: tile.kind === 'powerPlant' ? CONFIG.power.plantCapacity : 0,
+    service:
+      tile.kind === 'service' && tile.service
+        ? {
+            active: serviceActive(state, tile.anchor),
+            radius: CONFIG.services[tile.service].radius,
+          }
+        : null,
   };
 }

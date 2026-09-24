@@ -1,8 +1,9 @@
+import { buildingTiles, footprint } from './buildings';
 import { CONFIG } from './config';
 import { clampTaxRate, commandCost } from './economy';
 import { inBounds, linePoints, rectPoints, toIndex, toPoint } from './grid';
 import { emptyTile } from './state';
-import type { Point, SimState, Tile, ZoneType } from './types';
+import type { Point, ServiceType, SimState, Tile, ZoneType } from './types';
 
 /** Everything the player can do to the map. The UI and input layers only ever send these. */
 export type Command =
@@ -10,8 +11,10 @@ export type Command =
   | { type: 'placePowerLine'; from: Point; to: Point }
   | { type: 'placeZone'; zone: ZoneType; from: Point; to: Point }
   | { type: 'placePowerPlant'; at: Point }
+  | { type: 'placeService'; service: ServiceType; at: Point }
   | { type: 'bulldoze'; from: Point; to: Point }
-  | { type: 'setTaxRate'; rate: number };
+  | { type: 'setTaxRate'; rate: number }
+  | { type: 'setDisasters'; enabled: boolean };
 
 export interface PlanTile extends Point {
   /** False when something is in the way. */
@@ -102,17 +105,12 @@ function planZone(state: SimState, zone: ZoneType, from: Point, to: Point): Plan
   return plan.count > 0 ? plan : makePlan(tiles, 'nothingToDo', 'Nothing to zone here.');
 }
 
-/** Top-left anchored footprint of a power plant. */
-export function plantFootprint(at: Point): Point[] {
-  const size = CONFIG.power.plantSize;
-  return rectPoints(at, { x: at.x + size - 1, y: at.y + size - 1 });
-}
-
-function planPowerPlant(state: SimState, at: Point): Plan {
+/** A multi-tile building anchored at its top-left tile: every tile must be free land on the map. */
+function planBuilding(state: SimState, at: Point, size: number): Plan {
   const tiles: PlanTile[] = [];
   let fits = true;
   let blocked = false;
-  for (const p of plantFootprint(at)) {
+  for (const p of footprint(at, size)) {
     if (!inBounds(state, p.x, p.y)) {
       fits = false;
       continue;
@@ -133,11 +131,9 @@ function planBulldoze(state: SimState, from: Point, to: Point): Plan {
     const i = toIndex(state, p.x, p.y);
     const tile = state.tiles[i];
     if (tile.kind === 'empty') continue;
-    if (tile.kind === 'powerPlant') {
-      // Removing any part of a plant removes all of it.
-      for (const q of plantFootprint(toPoint(state, tile.anchor))) {
-        if (inBounds(state, q.x, q.y)) indices.add(toIndex(state, q.x, q.y));
-      }
+    if (tile.kind === 'powerPlant' || tile.kind === 'service') {
+      // Removing any part of a multi-tile building removes all of it.
+      for (const j of buildingTiles(state, tile.anchor)) indices.add(j);
     } else {
       indices.add(i);
     }
@@ -169,10 +165,13 @@ function planTiles(state: SimState, command: Command): Plan {
     case 'placeZone':
       return planZone(state, command.zone, command.from, command.to);
     case 'placePowerPlant':
-      return planPowerPlant(state, command.at);
+      return planBuilding(state, command.at, CONFIG.power.plantSize);
+    case 'placeService':
+      return planBuilding(state, command.at, CONFIG.services[command.service].size);
     case 'bulldoze':
       return planBulldoze(state, command.from, command.to);
     case 'setTaxRate':
+    case 'setDisasters':
       return makePlan([]);
   }
 }
@@ -198,10 +197,19 @@ function applyToTile(state: SimState, command: Command, p: Point): void {
         anchor: toIndex(state, command.at.x, command.at.y),
       };
       break;
+    case 'placeService':
+      state.tiles[i] = {
+        ...emptyTile(),
+        kind: 'service',
+        service: command.service,
+        anchor: toIndex(state, command.at.x, command.at.y),
+      };
+      break;
     case 'bulldoze':
       state.tiles[i] = emptyTile();
       break;
     case 'setTaxRate':
+    case 'setDisasters':
       break;
   }
 }
@@ -214,6 +222,11 @@ export function executeCommand(state: SimState, command: Command): CommandResult
   const plan = planCommand(state, command);
   if (!plan.valid) return { ok: false, reason: plan.reason, plan };
   if (command.type === 'setTaxRate') state.taxRate = clampTaxRate(command.rate);
+  if (command.type === 'setDisasters') {
+    state.disasters = command.enabled;
+    // Turning disasters off puts out fires that are already burning.
+    if (!command.enabled) for (const tile of state.tiles) tile.fire = 0;
+  }
   for (const t of plan.tiles) if (t.ok) applyToTile(state, command, t);
   state.funds -= plan.cost;
   return { ok: true, reason: null, plan };

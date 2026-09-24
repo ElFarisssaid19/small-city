@@ -1,3 +1,4 @@
+import { buildingTiles } from './buildings';
 import { CONFIG } from './config';
 import { chance } from './rng';
 import type { SimState, Tile, ZoneType } from './types';
@@ -9,6 +10,12 @@ export interface ZoneReport {
   completed: number;
   /** Buildings abandoned today. */
   abandoned: number;
+  /** Tiles where a fire broke out today. */
+  firesStarted: number[];
+  /** Tiles whose building burned down today. */
+  burnedDown: number[];
+  /** Fires put out today by a fire station's coverage. */
+  extinguished: number;
 }
 
 /** Residents (residential) or jobs (commercial, industrial) of a building at `level`. */
@@ -49,12 +56,19 @@ export function zoneChecklist(
  * The first thing holding a zone tile back, in the order the player should fix
  * them: road access, then power, then (for empty lots only) demand. Existing
  * buildings do not need demand to stay, so it is never reported for them.
- * Returns null when nothing is missing, or for tiles that are not zones.
+ * Service buildings (reported on their anchor tile) need road and power, parks
+ * nothing. Returns null when nothing is missing, or for other tiles.
  */
 export function missingRequirement(
   state: Readonly<SimState>,
   tile: Readonly<Tile>,
 ): Requirement | null {
+  if (tile.kind === 'service') {
+    if (tile.service === 'park' || state.tiles[tile.anchor] !== tile) return null;
+    const footprint = buildingTiles(state, tile.anchor).map((i) => state.tiles[i]);
+    if (!footprint.some((t) => t.roadAccess)) return 'road';
+    return footprint.some((t) => t.powered) ? null : 'power';
+  }
   const checklist = zoneChecklist(state, tile);
   if (!checklist) return null;
   if (!checklist.road) return 'road';
@@ -63,18 +77,54 @@ export function missingRequirement(
   return null;
 }
 
-/** Advances every zone lot by one day: growth, construction, upgrades, decline and abandonment. */
+/**
+ * Advances every zone lot by one day: fires, growth, construction, upgrades,
+ * decline and abandonment. A burning building is evacuated and does not change
+ * until the fire is out.
+ */
 export function updateZones(state: SimState): ZoneReport {
-  const report: ZoneReport = { started: 0, completed: 0, abandoned: 0 };
-  for (const tile of state.tiles) {
-    if (tile.kind !== 'zone' || tile.zone === null) continue;
-    stepZone(state, tile, state.demand[tile.zone], report);
+  const report: ZoneReport = {
+    started: 0,
+    completed: 0,
+    abandoned: 0,
+    firesStarted: [],
+    burnedDown: [],
+    extinguished: 0,
+  };
+  state.tiles.forEach((tile, i) => {
+    if (tile.kind !== 'zone' || tile.zone === null) return;
+    if (tile.fire > 0) burn(tile, i, report);
+    else if (catchesFire(state, tile)) {
+      tile.fire = CONFIG.disasters.burnDays;
+      report.firesStarted.push(i);
+    } else stepZone(state, tile, state.demand[tile.zone], report);
     tile.residents =
-      tile.zone === 'residential' && tile.stage === 'developed'
+      tile.zone === 'residential' && tile.stage === 'developed' && tile.fire === 0
         ? capacityOf('residential', tile.level)
         : 0;
-  }
+  });
   return report;
+}
+
+/** Buildings outside fire coverage can catch fire, but only while disasters are on. */
+function catchesFire(state: SimState, tile: Tile): boolean {
+  if (!state.disasters || tile.stage !== 'developed' || tile.coverage.fire) return false;
+  return chance(state, CONFIG.disasters.fireChance);
+}
+
+/** A fire burns down for a few days, then the lot is empty, unless a fire station reaches it. */
+function burn(tile: Tile, index: number, report: ZoneReport): void {
+  if (tile.coverage.fire) {
+    tile.fire = 0;
+    report.extinguished++;
+    return;
+  }
+  tile.fire--;
+  if (tile.fire > 0) return;
+  tile.stage = 'empty';
+  tile.level = 0;
+  tile.neglect = 0;
+  report.burnedDown.push(index);
 }
 
 function stepZone(state: SimState, tile: Tile, demand: number, report: ZoneReport): void {

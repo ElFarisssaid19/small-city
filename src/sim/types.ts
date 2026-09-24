@@ -7,7 +7,7 @@ export type ZoneType = 'residential' | 'commercial' | 'industrial';
 
 export const ZONE_TYPES: readonly ZoneType[] = ['residential', 'commercial', 'industrial'];
 
-export type TileKind = 'empty' | 'road' | 'powerLine' | 'powerPlant' | 'zone';
+export type TileKind = 'empty' | 'road' | 'powerLine' | 'powerPlant' | 'zone' | 'service';
 
 export type ServiceType = 'police' | 'fire' | 'school' | 'park';
 
@@ -28,6 +28,8 @@ export interface Tile {
   /** Carries a power line: always true for power lines, true for roads with a line crossing them. */
   hasLine: boolean;
   zone: ZoneType | null;
+  /** Service buildings: which service. */
+  service: ServiceType | null;
   stage: ZoneStage;
   /** Building level, 0 for lots and construction sites, 1..maxLevel once developed. */
   level: number;
@@ -41,8 +43,10 @@ export interface Tile {
   employed: number;
   /** Commercial / industrial: filled jobs. */
   workers: number;
-  /** Power plant tiles: index of the plant's anchor (top-left) tile; -1 otherwise. */
+  /** Power plant and service tiles: index of the building's anchor (top-left) tile; -1 otherwise. */
   anchor: number;
+  /** Days a burning building has left before it is lost; 0 when not on fire. */
+  fire: number;
   /** Derived each update: receives electricity. */
   powered: boolean;
   /** Derived each update: a road is within reach. */
@@ -79,10 +83,25 @@ export interface CityStats {
   averagePollution: number;
 }
 
-/** Money collected and spent at the end of a month. */
+export type ExpenseKind = 'roads' | 'power' | ServiceType;
+
+export const EXPENSE_KINDS: readonly ExpenseKind[] = [
+  'roads',
+  'power',
+  'police',
+  'fire',
+  'school',
+  'park',
+];
+
+/** Money collected and spent in a month, with where it came from and went. */
 export interface MonthlyBudget {
   taxes: number;
   upkeep: number;
+  /** Taxes by zone type. */
+  income: Record<ZoneType, number>;
+  /** Upkeep by kind: roads, power (plants and lines) and each service. */
+  expenses: Record<ExpenseKind, number>;
 }
 
 export interface SimState {
@@ -97,6 +116,8 @@ export interface SimState {
   funds: number;
   /** Tax rate in percent. */
   taxRate: number;
+  /** Whether random fires can break out. */
+  disasters: boolean;
   /** Result of the most recent month end. */
   lastBudget: MonthlyBudget;
   tiles: Tile[];

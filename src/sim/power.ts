@@ -5,19 +5,26 @@ import type { SimState, Tile } from './types';
 export interface PowerReport {
   /** Total capacity of all plants. */
   supply: number;
-  /** Total draw of all zone tiles, connected or not. */
+  /** Total draw of all buildings, connected or not. */
   demand: number;
   /** Zone tiles left without electricity. */
   unpoweredZones: number;
 }
 
-/** Power lines, plants and zone buildings carry electricity; roads and empty land do not. */
+/**
+ * Power lines, plants, zones and service buildings carry electricity; roads,
+ * parks and empty land do not.
+ */
 export function conductsPower(tile: Tile): boolean {
+  if (tile.kind === 'service') return tile.service !== 'park';
   return tile.hasLine || tile.kind === 'powerPlant' || tile.kind === 'zone';
 }
 
-/** Power units a tile draws. */
-export function consumption(tile: Tile): number {
+/** Power units the tile at `index` draws; a service building draws once, at its anchor. */
+export function consumption(tile: Tile, index: number): number {
+  if (tile.kind === 'service') {
+    return tile.service && tile.anchor === index ? CONFIG.services[tile.service].power : 0;
+  }
   if (tile.kind !== 'zone' || tile.stage === 'empty' || tile.stage === 'abandoned') return 0;
   return CONFIG.power.zoneConsumption[tile.level];
 }
@@ -35,10 +42,10 @@ export function updatePower(state: SimState): PowerReport {
   const queue = new Int32Array(n);
   const report: PowerReport = { supply: 0, demand: 0, unpoweredZones: 0 };
 
-  for (const tile of tiles) {
+  tiles.forEach((tile, i) => {
     tile.powered = false;
-    report.demand += consumption(tile);
-  }
+    report.demand += consumption(tile, i);
+  });
 
   for (let start = 0; start < n; start++) {
     if (inNetwork[start] || !conductsPower(tiles[start])) continue;
@@ -78,7 +85,7 @@ export function updatePower(state: SimState): PowerReport {
     while (head < tail) {
       const i = queue[head++];
       const tile = tiles[i];
-      const draw = consumption(tile);
+      const draw = consumption(tile, i);
       // Empty lots draw nothing yet, but only count as powered while the network
       // could still run a construction site on them.
       const needed = draw === 0 && tile.kind === 'zone' ? CONFIG.power.zoneConsumption[0] : draw;

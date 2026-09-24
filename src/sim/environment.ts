@@ -1,4 +1,5 @@
 import { CONFIG } from './config';
+import { activeServices } from './services';
 import { SERVICE_TYPES } from './types';
 import type { Coverage, SimState, Tile } from './types';
 
@@ -76,6 +77,11 @@ export function updateEnvironment(state: SimState): void {
     const people = crowd(tile);
     if (people > 0) spread(state, crowding, x, y, people, c.radius);
   });
+  // Parks soak up pollution around them.
+  for (const park of activeServices(state, 'park')) {
+    const x = park % width;
+    spread(state, pollution, x, (park - x) / width, -p.parkCleanup, CONFIG.services.park.radius);
+  }
 
   tiles.forEach((tile, i) => {
     tile.pollution = Math.round(clamp(pollution[i], 0, 100));

@@ -85,6 +85,25 @@ export const CONFIG = {
     taxSensitivity: 0.05,
   },
 
+  /**
+   * City services. `size` is the square footprint in tiles, `cost` the build
+   * price, `upkeep` the monthly cost, `radius` the Manhattan reach of its
+   * coverage, and `power` the units it draws. Parks need neither road nor power.
+   */
+  services: {
+    police: { size: 1, cost: 500, upkeep: 60, radius: 8, power: 3 },
+    fire: { size: 1, cost: 500, upkeep: 60, radius: 8, power: 3 },
+    school: { size: 2, cost: 1500, upkeep: 120, radius: 10, power: 6 },
+    park: { size: 1, cost: 150, upkeep: 10, radius: 4, power: 0 },
+  },
+
+  disasters: {
+    /** Daily chance that a building outside fire coverage catches fire. */
+    fireChance: 0.0002,
+    /** Days a fire burns before the building is lost. */
+    burnDays: 4,
+  },
+
   environment: {
     pollution: {
       /** Manhattan distance pollution reaches; it fades linearly to zero just beyond it. */
@@ -93,6 +112,8 @@ export const CONFIG = {
       industrial: [0, 5, 8, 12],
       /** Emitted by each tile of a power plant. */
       powerPlant: 14,
+      /** Removed at a park, fading to nothing just beyond the park's radius. */
+      parkCleanup: 30,
     },
     crime: {
       /** Manhattan distance over which people nearby add to a tile's crime. */

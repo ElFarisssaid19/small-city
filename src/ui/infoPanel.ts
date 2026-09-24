@@ -15,6 +15,13 @@ const ZONE_NAMES = {
   industrial: 'Industrial',
 };
 
+const SERVICE_NAMES = {
+  police: 'Police station',
+  fire: 'Fire station',
+  school: 'School',
+  park: 'Park',
+};
+
 function titleOf(info: TileInfo): string {
   const { tile } = info;
   switch (tile.kind) {
@@ -28,6 +35,8 @@ function titleOf(info: TileInfo): string {
       return 'Power plant';
     case 'zone':
       return `${tile.zone ? ZONE_NAMES[tile.zone] : ''} zone`;
+    case 'service':
+      return tile.service ? SERVICE_NAMES[tile.service] : 'Service';
   }
 }
 

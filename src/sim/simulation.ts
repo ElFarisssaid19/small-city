@@ -6,6 +6,7 @@ import { settleMonth } from './economy';
 import { updateEnvironment } from './environment';
 import { matchJobs } from './jobs';
 import { updatePower } from './power';
+import { updateCoverage } from './services';
 import { createState } from './state';
 import { isMonthStart } from './time';
 import type { CityStats, MonthlyBudget, SimState } from './types';
@@ -63,12 +64,14 @@ export class Simulation {
 
   /**
    * Recomputes what derives from the map every update (road access, power,
-   * jobs, totals) and, when asked or never done, pollution, crime and land value.
+   * service coverage, jobs, totals) and, when asked or never done, pollution,
+   * crime and land value.
    */
   private refresh(environment: boolean): void {
     const state = this.state;
     updateRoadAccess(state);
     const power = updatePower(state);
+    updateCoverage(state);
     const jobs = matchJobs(state);
     if (environment || !state.environmentReady) updateEnvironment(state);
     let population = 0;

@@ -113,7 +113,9 @@ describe('monthly budget', () => {
     state.funds = 1000;
     const taxes = monthlyTaxes(state);
     const budget = settleMonth(state);
-    expect(budget).toEqual({ taxes, upkeep: upkeep.road });
+    expect(budget).toMatchObject({ taxes, upkeep: upkeep.road });
+    expect(budget.income.residential).toBe(taxes);
+    expect(budget.expenses.roads).toBe(upkeep.road);
     expect(state.lastBudget).toEqual(budget);
     expect(state.funds).toBe(1000 + taxes - upkeep.road);
   });
@@ -127,7 +129,7 @@ describe('monthly budget', () => {
     days(sim, month - 1);
     expect(sim.state.funds).toBe(0);
     const report = sim.tick();
-    expect(report.budget).toEqual({ taxes: 0, upkeep: 10 * upkeep.road });
+    expect(report.budget).toMatchObject({ taxes: 0, upkeep: 10 * upkeep.road });
     expect(sim.state.funds).toBe(-10 * upkeep.road);
     days(sim, month);
     expect(sim.state.funds).toBe(-20 * upkeep.road);
