@@ -4,7 +4,13 @@ A browser city-builder written from scratch in TypeScript and three.js. Zone lan
 
 **▶ Play it:** https://elfarisssaid19.github.io/small-city/
 
-![Small City](docs/screenshot.png)
+![Small City](docs/screenshot-1.png)
+
+<p align="center">
+  <img src="docs/screenshot-2.png" width="32%" alt="Small City screenshot 2">
+  <img src="docs/screenshot-3.png" width="32%" alt="Small City screenshot 3">
+  <img src="docs/screenshot-4.png" width="32%" alt="Small City screenshot 4">
+</p>
 
 ## Features
 
