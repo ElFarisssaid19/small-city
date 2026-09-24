@@ -85,6 +85,33 @@ export const CONFIG = {
     taxSensitivity: 0.05,
   },
 
+  environment: {
+    pollution: {
+      /** Manhattan distance pollution reaches; it fades linearly to zero just beyond it. */
+      radius: 6,
+      /** Emitted by an industrial building, indexed by level. */
+      industrial: [0, 5, 8, 12],
+      /** Emitted by each tile of a power plant. */
+      powerPlant: 14,
+    },
+    crime: {
+      /** Manhattan distance over which people nearby add to a tile's crime. */
+      radius: 3,
+      /** Crime per resident or shop worker nearby (weighted by distance), before policing. */
+      perPerson: 0.13,
+      /** Share of crime left where police cover. */
+      policeFactor: 0.35,
+    },
+    landValue: {
+      base: 35,
+      /** Added for each service covering the tile. */
+      bonus: { police: 10, fire: 10, school: 15, park: 20 },
+      /** Land value lost per point of pollution and of crime. */
+      pollutionWeight: 0.6,
+      crimeWeight: 0.4,
+    },
+  },
+
   economy: {
     startingFunds: 20000,
     /** One-off build cost per tile, except power plants which cost this per plant. */

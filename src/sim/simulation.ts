@@ -3,11 +3,12 @@ import { executeCommand, planCommand } from './commands';
 import type { Command, CommandResult, Plan } from './commands';
 import { updateDemand } from './demand';
 import { settleMonth } from './economy';
+import { updateEnvironment } from './environment';
 import { matchJobs } from './jobs';
 import { updatePower } from './power';
 import { createState } from './state';
 import { isMonthStart } from './time';
-import type { MonthlyBudget, SimState } from './types';
+import type { CityStats, MonthlyBudget, SimState } from './types';
 import { updateZones } from './zones';
 import type { ZoneReport } from './zones';
 
@@ -15,6 +16,8 @@ export interface TickReport extends ZoneReport {
   day: number;
   /** Set on the first day of a new month, when taxes and upkeep are settled. */
   budget: MonthlyBudget | null;
+  /** True when pollution, crime and land value were recomputed this day. */
+  environmentUpdated: boolean;
 }
 
 /**
@@ -23,7 +26,7 @@ export interface TickReport extends ZoneReport {
  */
 export class Simulation {
   constructor(public readonly state: SimState) {
-    this.refresh();
+    this.refresh(false);
   }
 
   static newGame(seed: number): Simulation {
@@ -38,7 +41,8 @@ export class Simulation {
   execute(command: Command): CommandResult {
     const result = executeCommand(this.state, command);
     if (result.ok) {
-      this.refresh();
+      // Map edits show their effect on pollution, crime and land value at once.
+      this.refresh(true);
       this.state.revision++;
     }
     return result;
@@ -49,19 +53,24 @@ export class Simulation {
     const state = this.state;
     state.day++;
     const zones = updateZones(state);
-    this.refresh();
+    const monthStart = isMonthStart(state.day);
+    this.refresh(monthStart);
     updateDemand(state);
-    const budget = isMonthStart(state.day) ? settleMonth(state) : null;
+    const budget = monthStart ? settleMonth(state) : null;
     state.revision++;
-    return { ...zones, day: state.day, budget };
+    return { ...zones, day: state.day, budget, environmentUpdated: monthStart };
   }
 
-  /** Recomputes everything derived from the map: road access, power, jobs and totals. */
-  private refresh(): void {
+  /**
+   * Recomputes what derives from the map every update (road access, power,
+   * jobs, totals) and, when asked or never done, pollution, crime and land value.
+   */
+  private refresh(environment: boolean): void {
     const state = this.state;
     updateRoadAccess(state);
     const power = updatePower(state);
     const jobs = matchJobs(state);
+    if (environment || !state.environmentReady) updateEnvironment(state);
     let population = 0;
     for (const tile of state.tiles) population += tile.residents;
     state.stats = {
@@ -74,6 +83,32 @@ export class Simulation {
       powerSupply: power.supply,
       powerDemand: power.demand,
       unpoweredZones: power.unpoweredZones,
+      ...environmentAverages(state),
     };
   }
+}
+
+function mean(values: number[]): number {
+  return values.length === 0 ? 0 : values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+/** City-wide land value, crime at homes and shops, and pollution at homes. */
+function environmentAverages(
+  state: Readonly<SimState>,
+): Pick<CityStats, 'averageLandValue' | 'averageCrime' | 'averagePollution'> {
+  const landValue: number[] = [];
+  const crime: number[] = [];
+  const pollution: number[] = [];
+  for (const tile of state.tiles) {
+    if (tile.kind !== 'zone') continue;
+    landValue.push(tile.landValue);
+    if (tile.stage !== 'developed' || tile.zone === 'industrial') continue;
+    crime.push(tile.crime);
+    if (tile.zone === 'residential') pollution.push(tile.pollution);
+  }
+  return {
+    averageLandValue: Math.round(mean(landValue)),
+    averageCrime: Math.round(mean(crime)),
+    averagePollution: Math.round(mean(pollution)),
+  };
 }

@@ -18,10 +18,10 @@ export interface PlanTile extends Point {
   ok: boolean;
 }
 
-/** What a command would do, computed without changing anything; drives the ghost preview. */
 /** Why a command cannot run, for callers that react differently to each case. */
 export type PlanProblem = 'blocked' | 'outOfBounds' | 'nothingToDo' | 'notEnoughMoney';
 
+/** What a command would do, computed without changing anything; drives the ghost preview. */
 export interface Plan {
   /** Tiles that would change (`ok`) or that block the command (`!ok`). */
   tiles: PlanTile[];

@@ -98,6 +98,10 @@ function readTile(raw: unknown, count: number): Tile {
   tile.neglect = readInteger(raw, 'neglect', 0, Number.MAX_SAFE_INTEGER);
   tile.residents = readInteger(raw, 'residents', 0, Number.MAX_SAFE_INTEGER);
   tile.anchor = readInteger(raw, 'anchor', -1, count - 1);
+  // Environment fields are saved so a loaded city continues exactly; older saves lack them.
+  for (const field of ['pollution', 'crime', 'landValue'] as const) {
+    if (raw[field] !== undefined) tile[field] = readInteger(raw, field, 0, 100);
+  }
   if (tile.kind === 'zone' && tile.zone === null) {
     throw new SaveError('A zone tile has no zone type.');
   }
@@ -141,6 +145,7 @@ function readState(raw: unknown): SimState {
     taxRate: readInteger(raw, 'taxRate', CONFIG.economy.taxRate.min, CONFIG.economy.taxRate.max),
     lastBudget,
     tiles,
+    environmentReady: raw.environmentReady === true,
     demand,
     // Derived values are recomputed by the Simulation when it wraps the state.
     stats: emptyStats(),

@@ -9,6 +9,13 @@ export const ZONE_TYPES: readonly ZoneType[] = ['residential', 'commercial', 'in
 
 export type TileKind = 'empty' | 'road' | 'powerLine' | 'powerPlant' | 'zone';
 
+export type ServiceType = 'police' | 'fire' | 'school' | 'park';
+
+export const SERVICE_TYPES: readonly ServiceType[] = ['police', 'fire', 'school', 'park'];
+
+/** Which services reach a tile. */
+export type Coverage = Record<ServiceType, boolean>;
+
 /** Life cycle of a zone lot: empty lot → under construction → developed (level 1..3) ↔ abandoned. */
 export type ZoneStage = 'empty' | 'construction' | 'developed' | 'abandoned';
 
@@ -40,6 +47,14 @@ export interface Tile {
   powered: boolean;
   /** Derived each update: a road is within reach. */
   roadAccess: boolean;
+  /** Derived each update: services whose radius reaches this tile. */
+  coverage: Coverage;
+  /** 0–100, recomputed monthly and after every command. */
+  pollution: number;
+  /** 0–100, recomputed monthly and after every command. */
+  crime: number;
+  /** 0–100, recomputed monthly and after every command. */
+  landValue: number;
 }
 
 /** Growth pressure per zone type, each in [-1, 1]. */
@@ -56,6 +71,12 @@ export interface CityStats {
   powerSupply: number;
   powerDemand: number;
   unpoweredZones: number;
+  /** Mean land value of zone tiles. */
+  averageLandValue: number;
+  /** Mean crime at homes and shops. */
+  averageCrime: number;
+  /** Mean pollution at homes. */
+  averagePollution: number;
 }
 
 /** Money collected and spent at the end of a month. */
@@ -79,6 +100,11 @@ export interface SimState {
   /** Result of the most recent month end. */
   lastBudget: MonthlyBudget;
   tiles: Tile[];
+  /**
+   * Whether pollution, crime and land value have been computed for this map.
+   * They are saved, so a loaded game continues exactly where it left off.
+   */
+  environmentReady: boolean;
   demand: Demand;
   stats: CityStats;
   /** Bumped whenever anything visible changes, so views can cache work. */
