@@ -93,3 +93,75 @@ describe('save and load', () => {
     expect(() => deserialize(badFunds)).toThrow(/"funds" is not a number/);
   });
 });
+
+/** Turns a current save back into the version 1 format: no v2 fields at all. */
+function asVersion1(json: string): string {
+  const file = JSON.parse(json) as { version: number; state: Record<string, unknown> };
+  const { disasters: _d, environmentReady: _e, ...state } = file.state;
+  const tiles = (state.tiles as Record<string, unknown>[]).map((tile) => {
+    const {
+      service: _s,
+      fire: _f,
+      pollution: _p,
+      crime: _c,
+      landValue: _l,
+      coverage: _v,
+      ...rest
+    } = tile;
+    return rest;
+  });
+  const { taxes, upkeep } = state.lastBudget as { taxes: number; upkeep: number };
+  return JSON.stringify({ version: 1, state: { ...state, tiles, lastBudget: { taxes, upkeep } } });
+}
+
+describe('save migration', () => {
+  it('upgrades version 1 saves with defaults instead of rejecting them', () => {
+    const v1 = asVersion1(serialize(grownCity().state));
+    expect(JSON.parse(v1)).not.toHaveProperty('state.disasters');
+
+    const state = deserialize(v1);
+    expect(state.disasters).toBe(true);
+    expect(state.environmentReady).toBe(false);
+    expect(state.lastBudget.income).toEqual({ residential: 0, commercial: 0, industrial: 0 });
+    expect(state.tiles.every((t) => t.service === null && t.fire === 0 && t.landValue === 0)).toBe(
+      true,
+    );
+
+    // The environment is computed as soon as the game wraps the migrated state.
+    const sim = new Simulation(state);
+    expect(sim.state.environmentReady).toBe(true);
+    expect(sim.state.tiles.some((t) => t.pollution > 0)).toBe(true);
+    expect(sim.state.tiles.every((t) => t.landValue > 0 || t.pollution > 0 || t.crime > 0)).toBe(
+      true,
+    );
+    days(sim, 40);
+  });
+
+  it('writes the current version and requires every v2 field', () => {
+    const json = serialize(grownCity().state);
+    expect((JSON.parse(json) as { version: number }).version).toBe(2);
+    const missing = mutate(json, (file) => {
+      delete (file.state.tiles as Record<string, unknown>[])[0].landValue;
+    });
+    expect(() => deserialize(missing)).toThrow(/"landValue" is not a number/);
+    const noSetting = mutate(json, (file) => {
+      delete file.state.disasters;
+    });
+    expect(() => deserialize(noSetting)).toThrow(/"disasters"/);
+  });
+
+  it('round-trips services, fires and settings and continues exactly', () => {
+    const sim = grownCity();
+    run(sim, { type: 'placeService', service: 'park', at: at(14, 12) });
+    run(sim, { type: 'placeService', service: 'police', at: at(13, 6) });
+    run(sim, { type: 'setDisasters', enabled: false });
+    const burning = sim.state.tiles.find((t) => t.stage === 'developed');
+    if (burning) burning.fire = 2;
+
+    const copy = new Simulation(deserialize(serialize(sim.state)));
+    expect(comparable(copy.state)).toEqual(comparable(sim.state));
+    days(sim, 60);
+    days(copy, 60);
+    expect(comparable(copy.state)).toEqual(comparable(sim.state));
+  });
+});

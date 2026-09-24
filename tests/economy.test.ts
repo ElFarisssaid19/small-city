@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../src/sim/config';
-import { monthlyTaxes, monthlyUpkeep, settleMonth } from '../src/sim/economy';
+import { budgetBreakdown, monthlyTaxes, monthlyUpkeep, settleMonth } from '../src/sim/economy';
 import { createState } from '../src/sim/state';
 import { at, days, newSim, run, tileAt } from './helpers';
 
@@ -152,5 +152,61 @@ describe('tax rate', () => {
     const sim = newSim({ funds: -1000 });
     run(sim, { type: 'setTaxRate', rate: 15 });
     expect(sim.state.taxRate).toBe(15);
+  });
+});
+
+describe('services in the budget', () => {
+  const { services } = CONFIG;
+
+  it('charges each service its build cost once per building', () => {
+    const sim = newSim();
+    run(sim, { type: 'placeService', service: 'police', at: at(1, 1) });
+    run(sim, { type: 'placeService', service: 'school', at: at(4, 4) });
+    run(sim, { type: 'placeService', service: 'park', at: at(9, 9) });
+    expect(sim.state.funds).toBe(
+      startingFunds - services.police.cost - services.school.cost - services.park.cost,
+    );
+  });
+
+  it('lists upkeep by category, with each service once per building', () => {
+    const sim = newSim();
+    run(sim, { type: 'placeRoad', from: at(0, 0), to: at(4, 0) });
+    run(sim, { type: 'placePowerPlant', at: at(10, 10) });
+    run(sim, { type: 'placePowerLine', from: at(12, 10), to: at(13, 10) });
+    run(sim, { type: 'placeService', service: 'police', at: at(0, 2) });
+    run(sim, { type: 'placeService', service: 'fire', at: at(2, 2) });
+    run(sim, { type: 'placeService', service: 'school', at: at(4, 2) }); // 4 tiles, 1 school
+    run(sim, { type: 'placeService', service: 'park', at: at(7, 2) });
+    run(sim, { type: 'placeService', service: 'park', at: at(8, 2) });
+
+    const budget = budgetBreakdown(sim.state);
+    expect(budget.expenses).toEqual({
+      roads: 5 * upkeep.road,
+      power: upkeep.powerPlant + 2 * upkeep.powerLine,
+      police: services.police.upkeep,
+      fire: services.fire.upkeep,
+      school: services.school.upkeep,
+      park: 2 * services.park.upkeep,
+    });
+    expect(budget.upkeep).toBe(Object.values(budget.expenses).reduce((a, b) => a + b, 0));
+  });
+
+  it('splits income by zone type and pays service upkeep at month end', () => {
+    const state = createState({ seed: 1, width: 4, height: 1 });
+    Object.assign(state.tiles[0], { kind: 'zone', zone: 'residential', residents: 100 });
+    Object.assign(state.tiles[1], { kind: 'zone', zone: 'commercial', workers: 20 });
+    Object.assign(state.tiles[2], { kind: 'zone', zone: 'industrial', workers: 30 });
+    Object.assign(state.tiles[3], { kind: 'service', service: 'police', anchor: 3 });
+    state.taxRate = 10;
+    state.funds = 0;
+    const budget = settleMonth(state);
+    expect(budget.income).toEqual({
+      residential: Math.round(100 * income.residential * 0.1),
+      commercial: Math.round(20 * income.commercial * 0.1),
+      industrial: Math.round(30 * income.industrial * 0.1),
+    });
+    expect(budget.expenses.police).toBe(services.police.upkeep);
+    expect(state.funds).toBe(budget.taxes - services.police.upkeep);
+    expect(state.lastBudget).toEqual(budget);
   });
 });
